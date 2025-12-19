@@ -22,6 +22,10 @@ mio = { version = "1.0.3", features = ["os-ext"] }
 [build-dependencies]
 anyhow = "1.0.96"
 
-# 新增内容
+# 新增内容（支持C调用+Rust内部依赖）
 [lib]
-crate-type = ["cdylib", "rlib"]  # 支持C调用的动态库 + Rust内部依赖的静态库
+crate-type = ["cdylib", "rlib"]
+
+# 新增AArch64交叉编译适配（可选，明确目标架构兼容性）
+[package.metadata]
+supported-targets = ["aarch64-linux-android", "aarch64-unknown-linux-gnu"]

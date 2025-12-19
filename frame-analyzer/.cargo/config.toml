@@ -1,0 +1,14 @@
+[build]
+target = "aarch64-unknown-linux-gnu"  # 固定Linux AArch64目标
+
+[target.aarch64-unknown-linux-gnu]
+# 使用Codespaces中apt安装的交叉编译器（路径为系统默认）
+linker = "aarch64-linux-gnu-gcc"
+ar = "aarch64-linux-gnu-ar"
+
+# 适配Codespaces的编译优化
+rustflags = [
+    "-C", "link-arg=-fuse-ld=lld",
+    "-C", "target-cpu=cortex-a72",  # 适配Codespaces的ARM64模拟架构
+    "-C", "debuginfo=0"  # 减少编译产物体积
+]
