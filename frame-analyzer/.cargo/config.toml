@@ -1,20 +1,15 @@
 [build]
-# 固定安卓AArch64目标架构
 target = "aarch64-linux-android"
 
 [target.aarch64-linux-android]
-# 指向NDK中的clang linker（适配安卓API 24+，支持eBPF，摘要3/4）
 linker = "/opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
 ar = "/opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ar"
 
-# 安卓编译优化（参考摘要5的独立工具链配置思路，提升兼容性）
 rustflags = [
-    "-C", "link-arg=-fuse-ld=lld",  # 使用LLD链接器，加快编译
-    "-C", "target-feature=+v8a",    # 适配ARMv8架构（安卓设备主流架构）
-    "-C", "debuginfo=0"             # 减少动态库体积，适合安卓部署
+    "-C", "link-arg=-fuse-ld=lld",
+    "-C", "target-feature=+v8a"
 ]
 
-# 配置NDK环境变量（可选，确保编译时能找到NDK依赖）
 [env]
 ANDROID_NDK_HOME = "/opt/android-sdk-linux/ndk/25.1.8937393"
 ANDROID_SDK_ROOT = "/opt/android-sdk-linux"
