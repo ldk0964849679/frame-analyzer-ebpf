@@ -21,3 +21,7 @@ mio = { version = "1.0.3", features = ["os-ext"] }
 
 [build-dependencies]
 anyhow = "1.0.96"
+
+# 新增内容
+[lib]
+crate-type = ["cdylib", "rlib"]  # 支持C调用的动态库 + Rust内部依赖的静态库
