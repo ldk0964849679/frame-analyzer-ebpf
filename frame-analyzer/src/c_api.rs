@@ -19,13 +19,14 @@
 #![allow(non_snake_case)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-use std::ffi::CStr;
+// 移除未使用的 CStr 导入，消除警告
 use std::os::raw::c_char;
 use std::ptr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use libc::{c_int, size_t};
+// 移除未使用的 size_t 导入，消除警告
+use libc::c_int;
 
 use crate::{Analyzer, AnalyzerError, Pid};
 
@@ -75,7 +76,7 @@ fn error_to_code(err: &AnalyzerError) -> c_int {
 
 /// 创建帧分析器实例
 /// 返回：句柄（非空为成功）
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_create() -> FrameAnalyzerHandle {
     clear_last_error();
     match Analyzer::new() {
@@ -89,7 +90,7 @@ pub extern "C" fn frame_analyzer_create() -> FrameAnalyzerHandle {
 
 /// 销毁帧分析器实例
 /// 参数：handle - 分析器句柄
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_destroy(handle: FrameAnalyzerHandle) {
     clear_last_error();
     if !handle.is_null() {
@@ -100,7 +101,7 @@ pub extern "C" fn frame_analyzer_destroy(handle: FrameAnalyzerHandle) {
 /// 附加应用进程监控
 /// 参数：handle - 句柄，pid - 进程ID
 /// 返回：0=成功，负数=错误码
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_attach_app(handle: FrameAnalyzerHandle, pid: c_int) -> c_int {
     clear_last_error();
     if handle.is_null() {
@@ -120,7 +121,7 @@ pub extern "C" fn frame_analyzer_attach_app(handle: FrameAnalyzerHandle, pid: c_
 /// 分离应用进程监控
 /// 参数：handle - 句柄，pid - 进程ID
 /// 返回：0=成功，负数=错误码
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_detach_app(handle: FrameAnalyzerHandle, pid: c_int) -> c_int {
     clear_last_error();
     if handle.is_null() {
@@ -139,7 +140,7 @@ pub extern "C" fn frame_analyzer_detach_app(handle: FrameAnalyzerHandle, pid: c_
 
 /// 分离所有应用
 /// 参数：handle - 句柄
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_detach_all(handle: FrameAnalyzerHandle) {
     clear_last_error();
     if !handle.is_null() {
@@ -151,7 +152,7 @@ pub extern "C" fn frame_analyzer_detach_all(handle: FrameAnalyzerHandle) {
 /// 接收帧时间（阻塞，带超时）
 /// 参数：handle-句柄，pid-输出PID，frametime_ns-输出帧时间（纳秒），timeout_ms-超时（毫秒）
 /// 返回：0=成功，-1=超时，负数=错误码
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_recv(
     handle: FrameAnalyzerHandle,
     pid: *mut c_int,
@@ -184,7 +185,7 @@ pub extern "C" fn frame_analyzer_recv(
 /// 非阻塞接收帧时间
 /// 参数：handle-句柄，pid-输出PID，frametime_ns-输出帧时间（纳秒）
 /// 返回：0=成功，1=无数据，负数=错误码
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_try_recv(
     handle: FrameAnalyzerHandle,
     pid: *mut c_int,
@@ -195,7 +196,7 @@ pub extern "C" fn frame_analyzer_try_recv(
 
 /// 检查是否监控指定PID
 /// 返回：1=是，0=否，负数=错误码
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_is_monitoring(handle: FrameAnalyzerHandle, pid: c_int) -> c_int {
     clear_last_error();
     if handle.is_null() {
@@ -208,7 +209,7 @@ pub extern "C" fn frame_analyzer_is_monitoring(handle: FrameAnalyzerHandle, pid:
 
 /// 获取最后错误信息
 /// 返回：C字符串（空串为无错误）
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_get_last_error(_handle: FrameAnalyzerHandle) -> *const c_char {
     init_error_buffer();
     let error = unsafe {
@@ -226,7 +227,7 @@ pub extern "C" fn frame_analyzer_get_last_error(_handle: FrameAnalyzerHandle) ->
 }
 
 /// 获取版本号
-#[no_mangle]
+#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
 pub extern "C" fn frame_analyzer_get_version() -> *const c_char {
     concat!(env!("CARGO_PKG_VERSION_MAJOR"), ".", env!("CARGO_PKG_VERSION_MINOR"), ".", env!("CARGO_PKG_VERSION_PATCH")).as_ptr() as *const c_char
 }
