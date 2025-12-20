@@ -78,7 +78,8 @@
 //! ```
 
 mod analyze_target;
-mod c_api; // 新增C API模块声明
+// 关键修改1：将内部模块声明改为公开导出，供外部直接访问
+pub mod c_api; 
 mod ebpf;
 mod error;
 mod uprobe;
@@ -382,8 +383,3 @@ fn event_to_pid(event: &Event) -> Pid {
     pid as Pid
 }
 
-// 新增C API导出模块（不影响原有Rust API使用）
-/// C API 导出模块（供C代码调用）
-pub mod c_api {
-    pub use super::c_api::*;
-}
