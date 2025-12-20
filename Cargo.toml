@@ -3,7 +3,8 @@ members = [
     "frame-analyzer",
     "frame-analyzer-ebpf",
     "frame-analyzer-ebpf-common",
-    "examples/simple-analyzer"
+    "examples/simple-analyzer",
+    "xtask"
 ]
 resolver = "2"
 default-members = ["frame-analyzer-ebpf-common", "frame-analyzer-ebpf"]
@@ -25,36 +26,38 @@ homepage = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
 # 项目内部依赖
 frame-analyzer = { path = "./frame-analyzer", version = "0.3.4" }
 frame-analyzer-ebpf-common = { path = "./frame-analyzer-ebpf-common", version = "0.3.4" }
-# eBPF框架依赖：修正aya-ebpf的特性，添加cty依赖（aya-ebpf 0.1.1无cty特性，需单独引入）
+# eBPF框架依赖
 aya = "0.13.1"
 aya-ebpf = "0.1.1"
-cty = "0.2.2" # 补充cty依赖，替代aya-ebpf的cty特性
-# 系统/跨平台依赖
+cty = "0.2.2"
+# 系统/跨平台依赖：删除libc的android特性（该特性不存在）
 libc = { version = "0.2.153", features = [] }
-mio = { version = "1.0.3", features = ["os-ext", "android"] }
+mio = { version = "1.0.4", features = ["os-ext"] }
 cc = "1.0"
 # 通用工具依赖
 anyhow = "1.0.75"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.108"
-# 示例程序与核心库的第三方依赖
+# 示例程序、核心库与xtask的第三方依赖
 clap = { version = "4.5.4", features = ["derive"] }
 ctrlc = "3.4.4"
 thiserror = "1.0.57"
 ctor = "0.4.0"
 once_cell = "1.19.0"
+# xtask编译依赖
+cargo_metadata = "0.15.4"
 
-# 工作区全局profile配置（统一所有子crate的编译规则）
-[workspace.profile.release]
+# 工作区全局profile配置
+[profile.release]
 lto = true
 codegen-units = 1
 panic = "abort"
 debug = false
 opt-level = "s"
 debug-assertions = false
+strip = "symbols"
 
-[workspace.profile.dev]
-# 适配eBPF编译的debug模式优化
+[profile.dev]
 opt-level = 3
 debug = false
 debug-assertions = false
@@ -64,7 +67,3 @@ panic = "abort"
 incremental = false
 codegen-units = 1
 rpath = false
-
-# 工具链配置说明（实际在rust-toolchain.toml中）
-[workspace.metadata]
-rust-toolchain = { channel = "nightly", components = ["rust-src"] }

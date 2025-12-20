@@ -1,0 +1,10 @@
+[package]
+name = "xtask"
+edition = "2021"
+version = "0.1.0"
+
+[dependencies]
+anyhow = { workspace = true }
+cargo_metadata = "0.15.4"
+clap = { workspace = true, features = ["derive"] }
+aya-ebpf = { workspace = true }

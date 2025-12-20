@@ -13,12 +13,12 @@ license.workspace = true
 aya = { workspace = true }
 frame-analyzer-ebpf-common = { workspace = true, features = ["user"] }
 anyhow = { workspace = true }
-libc = { workspace = true }
+libc = { workspace = true } # 删除android特性，该特性不存在
 thiserror = { workspace = true }
-ctor = { workspace = true } # 改为继承工作区版本，消除手动指定的版本差异
+ctor = { workspace = true }
 ctrlc = { workspace = true }
 mio = { workspace = true }
-once_cell = { workspace = true } # 改为继承工作区版本
+once_cell = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -26,6 +26,8 @@ cc = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
 
 [package.metadata]
 supported-targets = ["aarch64-linux-android", "aarch64-unknown-linux-gnu"]
+ndk-version = "25c"

@@ -13,9 +13,9 @@ homepage.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 ctrlc = { workspace = true }
-# 移除path配置，解决"unused manifest key"警告，依赖路径由工作区根目录定义
 frame-analyzer = { workspace = true }
-libc = { workspace = true, features = ["android"] }
+libc = { workspace = true } # 删除android特性，该特性不存在
 
-# 移除profile块，工作区模式下子crate的profile会被忽略，统一在根目录配置
-# [profile.release] 已移至项目根目录Cargo.toml的[workspace.profile.release]中
+[[bin]]
+name = "simple-analyzer"
+path = "src/main.rs" # 新增：显式指定二进制入口，避免编译歧义

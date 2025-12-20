@@ -14,14 +14,13 @@ categories.workspace = true
 
 [features]
 default = []
-# 将libc的android特性移到特性块中，按场景动态启用
-user = ["dep:aya", "libc/android"]
+# 删除libc/android，该特性不存在，仅保留dep:aya
+user = ["dep:aya"]
 bpf = ["dep:aya-ebpf"]
 
 [dependencies]
 aya = { workspace = true, optional = true }
 aya-ebpf = { workspace = true, optional = true }
-# 移除default-features = false和直接写死的features，由特性块控制
 libc = { workspace = true }
 
 [lib]
