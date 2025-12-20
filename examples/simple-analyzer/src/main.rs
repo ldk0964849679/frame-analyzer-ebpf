@@ -16,6 +16,7 @@
 * You should have received a copy of the GNU General Public License
 * along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
 use std::{
     collections::VecDeque,
     sync::{
@@ -25,11 +26,11 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use frame_analyzer::Analyzer;
-// 新增libc依赖，用于安卓平台进程检查
-use libc;
+use libc::{c_int, pid_t}; // 显式导入需要的libc类型，避免未定义
+use ctrlc; // 补充ctrlc的导入
 
 /// Simple frame analyzer, print frametime on the screen
 #[derive(Parser, Debug)]
@@ -40,52 +41,77 @@ struct Args {
     pid: i32,
 }
 
+// 封装安卓进程检查函数，提升代码可读性
+unsafe fn check_process_exists(pid: pid_t) -> Result<()> {
+    if libc::kill(pid, 0) == -1 {
+        let errno = *libc::__errno_location(); // 获取安卓系统的错误码
+        return Err(anyhow::anyhow!(
+            "Target process {pid} does not exist (errno: {errno})"
+        ));
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
-    let arg = Args::parse();
-    let pid = arg.pid;
+    let args = Args::parse(); // 变量名修正为args，符合rust命名规范
+    let pid = args.pid;
 
     // 安卓平台检查目标进程是否存在，避免附着无效PID
     unsafe {
-        if libc::kill(pid as libc::pid_t, 0) == -1 {
-            return Err(anyhow::anyhow!("Target process {pid} does not exist"));
-        }
+        check_process_exists(pid as pid_t)
+            .with_context(|| format!("Failed to check process {pid}"))?;
     }
 
-    let mut analyzer = Analyzer::new()?;
-    analyzer.attach_app(pid)?;
+    let mut analyzer = Analyzer::new().with_context(|| "Failed to create Analyzer")?;
+    analyzer.attach_app(pid).with_context(|| format!("Failed to attach to pid {pid}"))?;
 
     let running = Arc::new(AtomicBool::new(true));
 
     {
         let running = running.clone();
-        // 修复：添加ctrlc依赖的导入（原代码漏引）
         ctrlc::set_handler(move || {
             running.store(false, Ordering::Release);
-        })?;
+            println!("\nReceived exit signal, stopping analyzer...");
+        })
+        .with_context(|| "Failed to set Ctrl+C handler")?;
     }
 
     let mut buffer = VecDeque::with_capacity(120);
+    println!("Started analyzing process {pid}, press Ctrl+C to exit...");
 
     while running.load(Ordering::Acquire) {
-        if let Some((pid, frametime)) = analyzer.recv() {
-            println!("frametime: {frametime:?}, pid: {pid}");
-            if buffer.len() >= 120 {
+        if let Some((recv_pid, frametime)) = analyzer.recv() {
+            // 过滤非目标PID的帧数据，避免干扰
+            if recv_pid != pid {
+                continue;
+            }
+
+            println!("Frametime: {frametime:?}, PID: {recv_pid}");
+            
+            if buffer.len() >= buffer.capacity() { // 使用capacity替代硬编码120，提升可维护性
                 buffer.pop_back();
             }
             buffer.push_front(frametime);
-            if buffer.len() == 120 {
-                // 修复：Duration不支持直接除法，转为纳秒浮点值计算帧率
-                let total_ns = buffer.iter()
+
+            // 当缓冲区满时计算平均FPS
+            if buffer.len() == buffer.capacity() {
+                let total_ns: f64 = buffer
+                    .iter()
                     .copied()
                     .map(|d| d.as_nanos() as f64)
-                    .sum::<f64>();
-                let avgs_ns = total_ns / buffer.len() as f64;
+                    .sum();
+                let avg_ns = total_ns / buffer.len() as f64; // 修复变量名错误：avgs_ns -> avg_ns
                 let fps = 1_000_000_000.0 / avg_ns;
-                // 优化：保留两位小数输出帧率，更易读
-                println!("Average FPS: {fps:.2}");
+                
+                println!("Average FPS (last 120 frames): {fps:.2}");
+                buffer.clear(); // 计算后清空缓冲区，重新累计
             }
+        } else {
+            // 无数据时短暂休眠，减少CPU占用
+            std::thread::sleep(Duration::from_millis(10));
         }
     }
 
+    println!("Analyzer stopped successfully");
     Ok(())
 }

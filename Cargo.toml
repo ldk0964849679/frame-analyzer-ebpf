@@ -7,8 +7,6 @@ members = [
 ]
 resolver = "2"
 default-members = ["frame-analyzer-ebpf-common", "frame-analyzer-ebpf"]
-# 移除default-target：eBPF目标（bpfel-unknown-none）与安卓目标冲突，由子crate各自指定
-# default-target = "aarch64-linux-android"
 
 [workspace.package]
 edition = "2024"
@@ -24,13 +22,14 @@ categories = ["os::linux-programming", "embedded"]
 homepage = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
 
 [workspace.dependencies]
-# 移除冗余的path配置：工作区依赖仅需版本，path由子crate自行指定
-frame-analyzer-ebpf-common = { version = "0.3.4" }
-# eBPF框架依赖
+# 项目内部依赖
+frame-analyzer = { path = "./frame-analyzer", version = "0.3.4" }
+frame-analyzer-ebpf-common = { path = "./frame-analyzer-ebpf-common", version = "0.3.4" }
+# eBPF框架依赖：修正aya-ebpf的特性，添加cty依赖（aya-ebpf 0.1.1无cty特性，需单独引入）
 aya = "0.13.1"
 aya-ebpf = "0.1.1"
-aya-tool = "0.1.1"
-# 系统/跨平台依赖：libc仅保留基础版本，特性由子crate通过features块动态启用
+cty = "0.2.2" # 补充cty依赖，替代aya-ebpf的cty特性
+# 系统/跨平台依赖
 libc = { version = "0.2.153", features = [] }
 mio = { version = "1.0.3", features = ["os-ext", "android"] }
 cc = "1.0"
@@ -38,7 +37,34 @@ cc = "1.0"
 anyhow = "1.0.75"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.108"
+# 示例程序与核心库的第三方依赖
+clap = { version = "4.5.4", features = ["derive"] }
+ctrlc = "3.4.4"
+thiserror = "1.0.57"
+ctor = "0.4.0"
+once_cell = "1.19.0"
 
-# 工具链配置移至rust-toolchain.toml，此处仅做说明
+# 工作区全局profile配置（统一所有子crate的编译规则）
+[workspace.profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+opt-level = "s"
+debug-assertions = false
+
+[workspace.profile.dev]
+# 适配eBPF编译的debug模式优化
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = true
+panic = "abort"
+incremental = false
+codegen-units = 1
+rpath = false
+
+# 工具链配置说明（实际在rust-toolchain.toml中）
 [workspace.metadata]
 rust-toolchain = { channel = "nightly", components = ["rust-src"] }

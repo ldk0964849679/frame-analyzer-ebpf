@@ -10,32 +10,19 @@ documentation.workspace = true
 homepage.workspace = true
 build = "build.rs"
 default-run = "frame-analyzer-ebpf"
-# 移除default-target，避免依赖实验性特性
 
 [dependencies]
 aya-ebpf = { workspace = true, features = ["cty"] }
-frame-analyzer-ebpf-common = { path = "../frame-analyzer-ebpf-common", workspace = true, features = ["bpf"] }
+# 移除path配置，解决冗余警告，仅保留工作区继承和特性
+frame-analyzer-ebpf-common = { workspace = true, features = ["bpf"] }
 
 [[bin]]
 name = "frame-analyzer-ebpf"
 path = "src/main.rs"
-# 移除bin块的target，改由config.toml统一指定
 
-[profile.dev]
-opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-lto = true
-panic = "abort"
-incremental = false
-codegen-units = 1
-rpath = false
-
-[profile.release]
-lto = true
-panic = "abort"
-codegen-units = 1
+# 移除所有profile块，改由工作区根目录统一配置
+# [profile.dev] 和 [profile.release] 已移至根目录Cargo.toml的[workspace.profile]
 
 [build-dependencies]
-aya-tool = { workspace = true }
+# 替换aya-tool为aya-ebpf的cli特性，解决包未找到错误
+aya-ebpf = { workspace = true, features = ["cli"] }

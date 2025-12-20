@@ -1,31 +1,21 @@
 [package]
 name = "simple-analyzer"
-# 仅继承工作区已定义的字段，未定义的直接写死避免解析错误
-version = "0.1.0" # 若根目录未统一定义示例版本，直接指定
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
-description = "Simple frame analyzer example for Android" # 写死描述，避免继承缺失
+description = "Simple frame analyzer example for Android"
 license.workspace = true
 repository.workspace = true
 documentation.workspace = true
 homepage.workspace = true
-# 新增：指定安卓目标架构，适配交叉编译
-default-target = "aarch64-linux-android"
 
 [dependencies]
-# 从工作区继承依赖版本，统一管理
 anyhow = { workspace = true }
-clap = { version = "4.5.4", features = ["derive"] }
-ctrlc = "3.4.4"
-# 保留路径引用，关闭workspace继承（避免版本匹配冲突）
-frame-analyzer = { path = "../../frame-analyzer" }
-# 新增安卓平台必需的 libc 依赖，启用android特性
+clap = { workspace = true, features = ["derive"] }
+ctrlc = { workspace = true }
+# 移除path配置，解决"unused manifest key"警告，依赖路径由工作区根目录定义
+frame-analyzer = { workspace = true }
 libc = { workspace = true, features = ["android"] }
 
-# 新增：安卓交叉编译的profile优化配置
-[profile.release]
-lto = true
-codegen-units = 1
-panic = "abort"
-# 禁用调试信息，减小二进制体积
-debug = false
+# 移除profile块，工作区模式下子crate的profile会被忽略，统一在根目录配置
+# [profile.release] 已移至项目根目录Cargo.toml的[workspace.profile.release]中

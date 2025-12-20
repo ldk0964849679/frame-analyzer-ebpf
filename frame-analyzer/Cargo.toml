@@ -10,21 +10,19 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-# 从工作区继承依赖版本，统一管理
 aya = { workspace = true }
-frame-analyzer-ebpf-common = { path = "../frame-analyzer-ebpf-common", features = ["user"], workspace = true }
+frame-analyzer-ebpf-common = { workspace = true, features = ["user"] }
 anyhow = { workspace = true }
 libc = { workspace = true }
-thiserror = "2.0.11"
-ctor = "0.4.0"
-ctrlc = "3.4.4"
-# 补充android特性，适配安卓平台IO模型
-mio = { workspace = true, features = ["os-ext", "android"] }
-once_cell = "1.19.0"
+thiserror = { workspace = true }
+ctor = { workspace = true } # 改为继承工作区版本，消除手动指定的版本差异
+ctrlc = { workspace = true }
+mio = { workspace = true }
+once_cell = { workspace = true } # 改为继承工作区版本
 
 [build-dependencies]
 anyhow = { workspace = true }
-cc = { workspace = true } # 从工作区继承版本
+cc = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
