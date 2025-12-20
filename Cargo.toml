@@ -1,28 +1,40 @@
 [workspace]
-# 明确工作区成员，确保cargo能识别各子crate
 members = [
     "frame-analyzer",
     "frame-analyzer-ebpf",
     "frame-analyzer-ebpf-common",
     "examples/simple-analyzer"
 ]
-resolver = "2"  # 启用新版依赖解析器，避免版本冲突
+resolver = "2"
+# 可选：指定默认编译目标（安卓aarch64），简化交叉编译命令
+default-members = ["frame-analyzer-ebpf-common", "frame-analyzer-ebpf"]
+default-target = "aarch64-linux-android"
 
 [workspace.package]
-# 统一子crate的基础配置（仅保留必要字段，避免继承冲突）
 edition = "2024"
 version = "0.3.4"
 authors = ["shadow3aaa@github.com"]
 license = "GPL-3.0"
 repository = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
-# 核心：补充子crate继承所需的description字段
 description = "eBPF-based frame analyzer for Android"
+documentation = "https://docs.rs/frame-analyzer-ebpf"
+readme = "README.md"
+keywords = ["ebpf", "android", "frame-analysis"]
+categories = ["os::linux-programming", "embedded"]
+homepage = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
 
-# 统一依赖版本，仅保留公共依赖（移除路径依赖，避免循环引用）
 [workspace.dependencies]
-aya = "0.13.1"                # eBPF框架核心依赖
-aya-ebpf = "0.1.1"            # eBPF程序依赖
-aya-ebpf-builder = "0.1.0"    # eBPF编译工具依赖
-libc = "0.2.153"              # 安卓C库调用依赖
-mio = { version = "1.0.3", features = ["os-ext"] }  # 安卓IO事件监听
-cc = "1.0"                    # 安卓NDK编译依赖
+# 共享库的工作区依赖定义
+frame-analyzer-ebpf-common = { path = "./frame-analyzer-ebpf-common", version = "0.3.4" }
+# eBPF框架依赖：移除aya-ebpf的builder特性，新增aya-tool适配旧版本编译
+aya = "0.13.1"
+aya-ebpf = "0.1.1"
+aya-tool = "0.1.1"
+# 系统/跨平台依赖：补充安卓平台特性
+libc = { version = "0.2.153", features = ["android"] }
+mio = { version = "1.0.3", features = ["os-ext", "android"] }
+cc = "1.0"
+# 通用工具依赖
+anyhow = "1.0.75"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"

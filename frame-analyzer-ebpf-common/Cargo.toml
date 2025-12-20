@@ -7,6 +7,10 @@ authors.workspace = true
 description.workspace = true
 repository.workspace = true
 license.workspace = true
+# 补充缺失的元信息继承字段，匹配根目录配置
+documentation.workspace = true
+homepage.workspace = true
+readme.workspace = true
 
 [features]
 # 拆分eBPF内核态和用户态特性，适配不同编译场景
