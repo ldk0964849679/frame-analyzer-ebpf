@@ -1,6 +1,8 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "frame-analyzer-ebpf"
-edition = "2021"
+edition = "2024"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -8,13 +10,15 @@ description.workspace = true
 license.workspace = true
 documentation.workspace = true
 homepage.workspace = true
-# 删除default-run = false，该配置仅支持字符串值
-autobins = false       # 禁用自动二进制目标生成
-autoexamples = false   # 禁用自动示例目标生成
-autotests = false      # 禁用自动测试目标生成
-autobenches = false    # 禁用自动基准测试目标生成
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+publish = false
+build = "build.rs"
 
 [dependencies]
+# 匹配工作区降级后的aya-ebpf 0.1.1版本
 aya-ebpf = { workspace = true, features = ["no_std"] }
 cty = { workspace = true }
 frame-analyzer-ebpf-common = { workspace = true, features = ["bpf"] }
@@ -28,8 +32,6 @@ name = "frame_analyzer_ebpf"
 ebpf = []
 default = ["ebpf"]
 
-[profile.release]
-panic = "abort"
-lto = true
-opt-level = 3
-codegen-units = 1
+[package.metadata.ebpf]
+target = "bpfel-unknown-none"
+cpu = "generic"
