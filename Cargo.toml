@@ -1,13 +1,25 @@
 [workspace]
-resolver = "2"
-members = ["frame-analyzer", "frame-analyzer-ebpf-common", "examples/simple-analyzer"]
+# 明确工作区成员，确保cargo能识别eBPF、安卓库和示例
+members = [
+    "frame-analyzer",          # 安卓端核心库（含C API）
+    "frame-analyzer-ebpf",     # eBPF程序
+    "frame-analyzer-ebpf-common",  # 共享数据结构（eBPF与用户态通信）
+    "examples/simple-analyzer" # 示例程序（验证功能）
+]
+resolver = "2"  # 启用新版依赖解析器，避免版本冲突
 
 [workspace.package]
-edition = "2024"
+# 统一所有子 crate 的基础配置
+edition = "2024"  # 与代码中Rust 2024语法匹配
 version = "0.3.4"
 authors = ["shadow3aaa@github.com"]
-repository = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
-readme = "README.md"
-description = "Track the frametime of Android apps, based on ebpf & uprobe"
 license = "GPL-3.0"
-documentation = "https://shadow3aaa.github.io/frame-analyzer-ebpf"
+repository = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
+
+# 统一依赖版本，避免子 crate 版本不一致
+[workspace.dependencies]
+aya = "0.133.1"                # eBPF框架核心依赖
+aya-ebpf = "0.1.1"            # eBPF程序依赖
+frame-analyzer-ebpf-common = { path = "./frame-analyzer-ebpf-common", version = "0.3.4" }
+libc = "0.2.153"              # 适配安卓C库调用
+mio = { version = "1.0.3", features = ["os-ext"] }  # 安卓端IO事件监听

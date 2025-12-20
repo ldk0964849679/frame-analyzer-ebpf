@@ -10,50 +10,36 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
 #![allow(non_snake_case)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-// 移除未使用的 CStr 导入，消除警告
 use std::os::raw::c_char;
 use std::ptr;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::Duration;
 
-// 移除未使用的 size_t 导入，消除警告
 use libc::c_int;
+use once_cell::sync::Lazy;
 
 use crate::{Analyzer, AnalyzerError, Pid};
 
 /// C 句柄类型（指向Rust的Analyzer实例）
 pub type FrameAnalyzerHandle = *mut Analyzer;
 
-/// 全局错误缓冲区（线程安全）
-static mut LAST_ERROR: Option<Arc<Mutex<String>>> = None;
-
-/// 初始化错误缓冲区
-fn init_error_buffer() {
-    unsafe {
-        if LAST_ERROR.is_none() {
-            LAST_ERROR = Some(Arc::new(Mutex::new(String::new())));
-        }
-    }
-}
+/// 全局错误缓冲区（线程安全，Lazy确保只初始化一次）
+static LAST_ERROR: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
 
 /// 设置错误信息
 fn set_last_error(err: &str) {
-    init_error_buffer();
-    unsafe {
-        if let Some(error_buffer) = &LAST_ERROR {
-            if let Ok(mut buffer) = error_buffer.lock() {
-                *buffer = err.to_string();
-            }
-        }
+    if let Ok(mut buffer) = LAST_ERROR.lock() {
+        *buffer = err.to_string();
     }
 }
 
@@ -76,7 +62,7 @@ fn error_to_code(err: &AnalyzerError) -> c_int {
 
 /// 创建帧分析器实例
 /// 返回：句柄（非空为成功）
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_create() -> FrameAnalyzerHandle {
     clear_last_error();
     match Analyzer::new() {
@@ -90,18 +76,20 @@ pub extern "C" fn frame_analyzer_create() -> FrameAnalyzerHandle {
 
 /// 销毁帧分析器实例
 /// 参数：handle - 分析器句柄
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_destroy(handle: FrameAnalyzerHandle) {
     clear_last_error();
     if !handle.is_null() {
-        unsafe { Box::from_raw(handle); }
+        unsafe { 
+            let _ = Box::from_raw(handle); // 修复：显式忽略返回值，消除must_use警告
+        }
     }
 }
 
 /// 附加应用进程监控
 /// 参数：handle - 句柄，pid - 进程ID
 /// 返回：0=成功，负数=错误码
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_attach_app(handle: FrameAnalyzerHandle, pid: c_int) -> c_int {
     clear_last_error();
     if handle.is_null() {
@@ -121,7 +109,7 @@ pub extern "C" fn frame_analyzer_attach_app(handle: FrameAnalyzerHandle, pid: c_
 /// 分离应用进程监控
 /// 参数：handle - 句柄，pid - 进程ID
 /// 返回：0=成功，负数=错误码
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_detach_app(handle: FrameAnalyzerHandle, pid: c_int) -> c_int {
     clear_last_error();
     if handle.is_null() {
@@ -140,7 +128,7 @@ pub extern "C" fn frame_analyzer_detach_app(handle: FrameAnalyzerHandle, pid: c_
 
 /// 分离所有应用
 /// 参数：handle - 句柄
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_detach_all(handle: FrameAnalyzerHandle) {
     clear_last_error();
     if !handle.is_null() {
@@ -152,7 +140,7 @@ pub extern "C" fn frame_analyzer_detach_all(handle: FrameAnalyzerHandle) {
 /// 接收帧时间（阻塞，带超时）
 /// 参数：handle-句柄，pid-输出PID，frametime_ns-输出帧时间（纳秒），timeout_ms-超时（毫秒）
 /// 返回：0=成功，-1=超时，负数=错误码
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_recv(
     handle: FrameAnalyzerHandle,
     pid: *mut c_int,
@@ -185,18 +173,48 @@ pub extern "C" fn frame_analyzer_recv(
 /// 非阻塞接收帧时间
 /// 参数：handle-句柄，pid-输出PID，frametime_ns-输出帧时间（纳秒）
 /// 返回：0=成功，1=无数据，负数=错误码
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_try_recv(
     handle: FrameAnalyzerHandle,
     pid: *mut c_int,
     frametime_ns: *mut u64,
 ) -> c_int {
-    frame_analyzer_recv(handle, pid, frametime_ns, 0)
+    clear_last_error();
+    if handle.is_null() || pid.is_null() || frametime_ns.is_null() {
+        set_last_error("Invalid handle or output pointer");
+        return -100;
+    }
+    let analyzer = unsafe { &mut *handle };
+
+    // 非阻塞逻辑：直接检查缓冲区，不等待
+    if analyzer.buffer.is_empty() {
+        return 1; // 无数据
+    }
+
+    let p = match analyzer.buffer.pop_front() {
+        Some(pid) => pid,
+        None => return 1,
+    };
+
+    let frametime = match analyzer.map.get_mut(&p) {
+        Some(target) => target.update(),
+        None => return 1,
+    };
+
+    if let Some(t) = frametime {
+        unsafe {
+            *pid = p as c_int;
+            *frametime_ns = t.as_nanos() as u64;
+        }
+        0 // 成功
+    } else {
+        1 // 无有效帧时间
+    }
 }
 
 /// 检查是否监控指定PID
 /// 返回：1=是，0=否，负数=错误码
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_is_monitoring(handle: FrameAnalyzerHandle, pid: c_int) -> c_int {
     clear_last_error();
     if handle.is_null() {
@@ -209,25 +227,34 @@ pub extern "C" fn frame_analyzer_is_monitoring(handle: FrameAnalyzerHandle, pid:
 
 /// 获取最后错误信息
 /// 返回：C字符串（空串为无错误）
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_get_last_error(_handle: FrameAnalyzerHandle) -> *const c_char {
-    init_error_buffer();
-    let error = unsafe {
-        LAST_ERROR.as_ref().and_then(|b| b.lock().ok()).map(|s| s.clone()).unwrap_or_default()
-    };
-    // 静态缓冲区存储错误信息（线程安全简化版）
+    let error = LAST_ERROR.lock().unwrap().clone();
+    // 静态缓冲区存储错误信息（确保线程安全和字符串终止符）
     static mut BUF: [u8; 256] = [0; 256];
+
     unsafe {
         let bytes = error.as_bytes();
-        let len = bytes.len().min(255);
+        let len = bytes.len().min(255); // 预留1字节给终止符
         BUF[..len].copy_from_slice(&bytes[..len]);
-        BUF[len] = 0; // 终止符
-        BUF.as_ptr() as *const c_char
+        BUF[len] = 0; // 强制添加C字符串终止符
+        
+        // 修复：使用&raw const语法创建裸指针，适配Rust 2024 static_mut_refs规则
+        (&raw const BUF as *const [u8; 256]) as *const c_char
     }
 }
 
 /// 获取版本号
-#[unsafe(no_mangle)] // 替换为 unsafe(no_mangle) 解决编译错误
+#[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_get_version() -> *const c_char {
-    concat!(env!("CARGO_PKG_VERSION_MAJOR"), ".", env!("CARGO_PKG_VERSION_MINOR"), ".", env!("CARGO_PKG_VERSION_PATCH")).as_ptr() as *const c_char
+    // 静态常量确保字符串生命周期全局有效
+    static VERSION: &str = concat!(
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        ".",
+        env!("CARGO_PKG_VERSION_MINOR"),
+        ".",
+        env!("CARGO_PKG_VERSION_PATCH")
+    );
+    // 修复：显式转换为*const c_char，同时确保C字符串终止符（静态字符串天然带\0）
+    VERSION.as_ptr() as *const c_char
 }

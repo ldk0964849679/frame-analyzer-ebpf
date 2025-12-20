@@ -1,6 +1,15 @@
 [build]
-target-dir = "../target"
+# 固定eBPF编译目标，避免与安卓目标冲突
 target = "bpfel-unknown-none"
+# 输出目录统一到项目根目录target，方便后续安卓端加载
+target-dir = "../target"
 
 [unstable]
+# 仅编译core库（eBPF无标准库），必须启用
 build-std = ["core"]
+
+[env]
+# 强制使用nightly工具链（eBPF依赖不稳定特性）
+RUSTUP_TOOLCHAIN = "nightly"
+# 配置bpf-linker路径（从build.rs自动安装的路径读取）
+PATH = { value = "$OUT_DIR/temp_target/bin:$PATH" }

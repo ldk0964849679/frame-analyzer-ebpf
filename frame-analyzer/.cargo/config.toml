@@ -1,15 +1,24 @@
 [build]
+# 固定安卓ARM64目标，与项目支持的架构匹配
 target = "aarch64-linux-android"
 
 [target.aarch64-linux-android]
-linker = "/opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
-ar = "/opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ar"
+# 指向NDK的clang链接器（替换为你的NDK实际路径）
+linker = "/opt/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang"
+# 指向NDK的归档工具
+ar = "/opt/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ar"
 
+# 核心：添加NDK库搜索路径，解决liblog缺失；用libc++_static替代libunwind
 rustflags = [
-    "-C", "link-arg=-fuse-ld=lld",
-    "-C", "target-feature=+v8a"
+    "-L", "$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/33",
+    "-l", "log",          # 链接安卓日志库
+    "-l", "c++_static",    # 替代libunwind（NDK r25c整合到c++库）
+    "-C", "link-arg=-fuse-ld=lld",  # 使用LLD链接器，加速安卓编译
+    "-C", "target-feature=+v8a",    # 启用ARMv8-A特性，适配安卓设备
 ]
 
 [env]
-ANDROID_NDK_HOME = "/opt/android-sdk-linux/ndk/25.1.8937393"
-ANDROID_SDK_ROOT = "/opt/android-sdk-linux"
+# 配置NDK根路径（必须与实际安装路径一致）
+ANDROID_NDK_ROOT = "/opt/android-ndk-r25c"
+# 配置SDK路径（NDK依赖SDK的部分工具）
+ANDROID_SDK_ROOT = "/opt/android-sdk"

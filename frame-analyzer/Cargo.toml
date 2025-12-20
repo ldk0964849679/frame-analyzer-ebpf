@@ -17,15 +17,15 @@ libc = "0.2"
 thiserror = "2.0.11"
 ctor = "0.4.0"
 ctrlc = "3.4.4"
-mio = { version = "1.0.3", features = ["os-ext"] }
+mio = { version = "1.0.3", features = ["os-ext"] } # 移除无效的unix特性
+once_cell = "1.19.0" # 新增缺失依赖
 
 [build-dependencies]
 anyhow = "1.0.96"
+cc = "1.0" # 可选：用于C代码编译
 
-# 新增内容（支持C调用+Rust内部依赖）
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib", "rlib"] # 支持C动态库+Rust库
 
-# 新增AArch64交叉编译适配（可选，明确目标架构兼容性）
 [package.metadata]
 supported-targets = ["aarch64-linux-android", "aarch64-unknown-linux-gnu"]
