@@ -1,7 +1,6 @@
 [package]
 name = "frame-analyzer-ebpf"
-# 继承工作区配置，统一版本和元信息
-edition.workspace = true
+edition = "2021"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -9,20 +8,19 @@ description.workspace = true
 license.workspace = true
 documentation.workspace = true
 homepage.workspace = true
-# 显式指定构建脚本，关联eBPF编译工具
 build = "build.rs"
+default-run = "frame-analyzer-ebpf"
+# 移除default-target，避免依赖实验性特性
 
 [dependencies]
-# 从工作区继承eBPF核心依赖
-aya-ebpf = { workspace = true }
-# 仅保留工作区继承，路径由根目录统一定义
-frame-analyzer-ebpf-common = { workspace = true, features = ["bpf"] }
+aya-ebpf = { workspace = true, features = ["cty"] }
+frame-analyzer-ebpf-common = { path = "../frame-analyzer-ebpf-common", workspace = true, features = ["bpf"] }
 
 [[bin]]
 name = "frame-analyzer-ebpf"
 path = "src/main.rs"
+# 移除bin块的target，改由config.toml统一指定
 
-# 恢复子crate的编译配置，工作区profile配置无效
 [profile.dev]
 opt-level = 3
 debug = false
@@ -40,5 +38,4 @@ panic = "abort"
 codegen-units = 1
 
 [build-dependencies]
-# 改用aya-tool作为0.1.1版本的eBPF编译工具，替代无效的builder特性
 aya-tool = { workspace = true }

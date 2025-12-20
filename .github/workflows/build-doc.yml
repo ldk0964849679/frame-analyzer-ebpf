@@ -21,30 +21,44 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.6
+      - name: Checkout code
+        uses: actions/checkout@v4  # 仅保留最新版checkout，移除重复的v3步骤
+
+      - name: Install Rust nightly toolchain
+        uses: dtolnay/rust-toolchain@v1  # 替代actions-rs/toolchain，支持缓存且维护更活跃
         with:
-          override: true
-          toolchain: nightly
-      - name: Install bpf build tool
-        run: cargo install bpf-linker
-      - name: Build Documentation
+          toolchain: nightly-2024-05-01  # 锁定版本，与项目rust-toolchain.toml一致
+          components: rust-docs, rust-src  # 仅安装文档构建必需组件，减少耗时
+          target: bpfel-unknown-none  # 预安装eBPF目标，避免文档构建时触发额外编译
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2  # 新增依赖缓存，加速后续构建
+        with:
+          cache-on-failure: true
+
+      - name: Install bpf-linker (eBPF文档依赖)
+        run: cargo install bpf-linker --version 0.9.3  # 锁定版本，避免兼容性问题
+
+      - name: Build documentation
         run: |
-          cargo doc --all --no-deps
+          cargo doc --all --no-deps --document-private-items  # 可选：--document-private-items展示私有API（按需开启）
+          # 生成跳转首页，指向frame_analyzer核心库文档
           echo "<meta http-equiv=\"refresh\" content=\"0; url=frame_analyzer\">" > target/doc/index.html
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Fix permissions
+          # 修复中文文档乱码（若项目含中文注释）
+          find target/doc -name "*.html" -exec sed -i 's/<meta charset="utf-8"/<meta charset="UTF-8">/g' {} \;
+
+      - name: Fix file permissions
         run: |
           chmod -c -R +rX "target/doc" | while read line; do
             echo "::warning title=Invalid file permissions automatically fixed::$line"
           done
-      - name: Upload artifact
+
+      - name: Upload documentation artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: "target/doc"
+          retention-days: 1  # 缩短 artifact 保留时间，节省存储空间
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

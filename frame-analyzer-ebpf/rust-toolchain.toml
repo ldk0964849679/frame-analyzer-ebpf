@@ -1,13 +1,21 @@
 [toolchain]
-channel = "nightly"
-# The source code of rustc, provided by the rust-src component, is needed for
-# building eBPF programs.
+# 锁定nightly版本，避免不同版本特性差异导致编译失败（推荐选择近期稳定版）
+channel = "nightly-2024-05-01"
+# 强制使用该工具链，覆盖全局配置
+profile = "default"
+# eBPF编译核心组件（保留原有基础上，补充bpf目标的std组件）
 components = [
     "cargo",
     "clippy",
     "rust-docs",
-    "rust-src",
-    "rust-std",
+    "rust-src",       # 必需：eBPF无标准库，需依赖rust-src源码
+    "rust-std",       # 基础std组件
+    "rust-std-bpfel-unknown-none",  # 新增：eBPF目标架构的std组件
     "rustc",
     "rustfmt",
+]
+# 限制工具链适用的目标架构，避免不必要的组件安装
+targets = [
+    "bpfel-unknown-none",  # eBPF核心目标
+    "aarch64-linux-android" # 安卓交叉编译目标（可选，按需添加）
 ]

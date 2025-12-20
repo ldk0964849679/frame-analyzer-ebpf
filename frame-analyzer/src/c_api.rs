@@ -1,28 +1,28 @@
 /*
- * Copyright (c) 2024 shadow3aaa@gitbub.com
- *
- * This file is part of frame-analyzer-ebpf.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+* Copyright (c) 2024 shadow3aaa@gitbub.com
+*
+* This file is part of frame-analyzer-ebpf.
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 #![allow(non_snake_case)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::os::raw::c_char;
 use std::ptr;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use libc::c_int;
@@ -36,11 +36,22 @@ pub type FrameAnalyzerHandle = *mut Analyzer;
 /// 全局错误缓冲区（线程安全，Lazy确保只初始化一次）
 static LAST_ERROR: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
 
+/// 安全获取错误缓冲区锁（处理PoisonError）
+fn lock_error_buf() -> MutexGuard<'static, String> {
+    match LAST_ERROR.lock() {
+        Ok(guard) => guard,
+        Err(PoisonError(guard)) => {
+            // 锁被恐慌污染时仍继续使用，避免C API调用失败
+            eprintln!("Warning: LAST_ERROR mutex poisoned, continuing with corrupted state");
+            guard
+        }
+    }
+}
+
 /// 设置错误信息
 fn set_last_error(err: &str) {
-    if let Ok(mut buffer) = LAST_ERROR.lock() {
-        *buffer = err.to_string();
-    }
+    let mut buffer = lock_error_buf();
+    *buffer = err.to_string();
 }
 
 /// 清除错误信息
@@ -80,8 +91,8 @@ pub extern "C" fn frame_analyzer_create() -> FrameAnalyzerHandle {
 pub extern "C" fn frame_analyzer_destroy(handle: FrameAnalyzerHandle) {
     clear_last_error();
     if !handle.is_null() {
-        unsafe { 
-            let _ = Box::from_raw(handle); // 修复：显式忽略返回值，消除must_use警告
+        unsafe {
+            let _ = Box::from_raw(handle); // 显式忽略返回值，消除must_use警告
         }
     }
 }
@@ -229,7 +240,8 @@ pub extern "C" fn frame_analyzer_is_monitoring(handle: FrameAnalyzerHandle, pid:
 /// 返回：C字符串（空串为无错误）
 #[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_get_last_error(_handle: FrameAnalyzerHandle) -> *const c_char {
-    let error = LAST_ERROR.lock().unwrap().clone();
+    // 安全读取错误信息，处理锁污染
+    let error = lock_error_buf().clone();
     // 静态缓冲区存储错误信息（确保线程安全和字符串终止符）
     static mut BUF: [u8; 256] = [0; 256];
 
@@ -238,23 +250,22 @@ pub extern "C" fn frame_analyzer_get_last_error(_handle: FrameAnalyzerHandle) ->
         let len = bytes.len().min(255); // 预留1字节给终止符
         BUF[..len].copy_from_slice(&bytes[..len]);
         BUF[len] = 0; // 强制添加C字符串终止符
-        
-        // 修复：使用&raw const语法创建裸指针，适配Rust 2024 static_mut_refs规则
-        (&raw const BUF as *const [u8; 256]) as *const c_char
+        // 兼容Rust版本，直接转换为C字符指针
+        BUF.as_ptr() as *const c_char
     }
 }
 
 /// 获取版本号
 #[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_get_version() -> *const c_char {
-    // 静态常量确保字符串生命周期全局有效
+    // 静态常量确保字符串生命周期全局有效，且自带终止符
     static VERSION: &str = concat!(
         env!("CARGO_PKG_VERSION_MAJOR"),
         ".",
         env!("CARGO_PKG_VERSION_MINOR"),
         ".",
-        env!("CARGO_PKG_VERSION_PATCH")
+        env!("CARGO_PKG_VERSION_PATCH"),
+        "\0" // 显式添加C字符串终止符，避免跨平台兼容问题
     );
-    // 修复：显式转换为*const c_char，同时确保C字符串终止符（静态字符串天然带\0）
     VERSION.as_ptr() as *const c_char
 }

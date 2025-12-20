@@ -6,9 +6,9 @@ members = [
     "examples/simple-analyzer"
 ]
 resolver = "2"
-# 可选：指定默认编译目标（安卓aarch64），简化交叉编译命令
 default-members = ["frame-analyzer-ebpf-common", "frame-analyzer-ebpf"]
-default-target = "aarch64-linux-android"
+# 移除default-target：eBPF目标（bpfel-unknown-none）与安卓目标冲突，由子crate各自指定
+# default-target = "aarch64-linux-android"
 
 [workspace.package]
 edition = "2024"
@@ -24,17 +24,21 @@ categories = ["os::linux-programming", "embedded"]
 homepage = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
 
 [workspace.dependencies]
-# 共享库的工作区依赖定义
-frame-analyzer-ebpf-common = { path = "./frame-analyzer-ebpf-common", version = "0.3.4" }
-# eBPF框架依赖：移除aya-ebpf的builder特性，新增aya-tool适配旧版本编译
+# 移除冗余的path配置：工作区依赖仅需版本，path由子crate自行指定
+frame-analyzer-ebpf-common = { version = "0.3.4" }
+# eBPF框架依赖
 aya = "0.13.1"
 aya-ebpf = "0.1.1"
 aya-tool = "0.1.1"
-# 系统/跨平台依赖：补充安卓平台特性
-libc = { version = "0.2.153", features = ["android"] }
+# 系统/跨平台依赖：libc仅保留基础版本，特性由子crate通过features块动态启用
+libc = { version = "0.2.153", features = [] }
 mio = { version = "1.0.3", features = ["os-ext", "android"] }
 cc = "1.0"
 # 通用工具依赖
 anyhow = "1.0.75"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.108"
+
+# 工具链配置移至rust-toolchain.toml，此处仅做说明
+[workspace.metadata]
+rust-toolchain = { channel = "nightly", components = ["rust-src"] }
