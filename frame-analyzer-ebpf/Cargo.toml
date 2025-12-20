@@ -18,22 +18,23 @@ publish = false
 build = "build.rs"
 
 [dependencies]
-# 匹配工作区降级后的aya-ebpf 0.1.1版本
-aya-ebpf = { workspace = true, features = ["no_std"] }
+# 直接指定git源，跳过工作区依赖传递
+aya-ebpf = { git = "https://github.com/aya-rs/aya", features = ["ebpf"], default-features = false, branch = "main" }
 cty = { workspace = true }
-frame-analyzer-ebpf-common = { workspace = true, features = ["bpf"] }
+# 使用本地相对路径依赖，避免工作区解析失效
+frame-analyzer-ebpf-common = { path = "../frame-analyzer-ebpf-common", features = ["bpf"] }
 
 [lib]
 crate-type = ["cdylib"]
 path = "src/main.rs"
 name = "frame_analyzer_ebpf"
+required-features = ["ebpf"]
 
 [features]
-ebpf = []
+ebpf = ["aya-ebpf/ebpf", "frame-analyzer-ebpf-common/bpf"]
 default = ["ebpf"]
 
 [package.metadata.ebpf]
 target = "bpfel-unknown-none"
 cpu = "generic"
-# 新增：指定eBPF程序类型，适配aya-ebpf 0.1.1的加载逻辑
 prog-type = "tracepoint"

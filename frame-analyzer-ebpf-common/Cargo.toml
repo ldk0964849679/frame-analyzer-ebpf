@@ -11,19 +11,20 @@ homepage.workspace = true
 readme.workspace = true
 keywords.workspace = true
 categories.workspace = true
+build = "build.rs"
 
 [features]
 default = []
-# 删除libc/android，该特性不存在，仅保留dep:aya
 user = ["dep:aya"]
-bpf = ["dep:aya-ebpf"]
+bpf = ["dep:aya-ebpf", "aya-ebpf/ebpf"]
 
 [dependencies]
-aya = { workspace = true, optional = true }
-aya-ebpf = { workspace = true, optional = true }
+# 直接指定git源，不再依赖工作区传递，避免解析失效
+aya = { git = "https://github.com/aya-rs/aya", branch = "main", optional = true }
+aya-ebpf = { git = "https://github.com/aya-rs/aya", features = ["ebpf"], default-features = false, branch = "main", optional = true }
 libc = { workspace = true }
 
 [lib]
 path = "src/lib.rs"
-crate-type = ["lib", "staticlib", "cdylib"]
+crate-type = ["lib", "cdylib"]
 name = "frame_analyzer_ebpf_common"

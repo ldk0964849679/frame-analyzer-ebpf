@@ -1,3 +1,4 @@
+# 仅保留稳定的profile-rustflags特性，移除git-dependencies
 cargo-features = ["profile-rustflags"]
 
 [workspace]
@@ -28,9 +29,9 @@ homepage = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
 # 项目内部依赖
 frame-analyzer = { path = "./frame-analyzer", version = "0.3.4" }
 frame-analyzer-ebpf-common = { path = "./frame-analyzer-ebpf-common", version = "0.3.4" }
-# 使用crates.io可获取的0.1.1正式版
-aya = "0.1.1"
-aya-ebpf = { version = "0.1.1", features = ["no_std"], default-features = false }
+# 锁定到main分支，保留ebpf特性
+aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
+aya-ebpf = { git = "https://github.com/aya-rs/aya", features = ["ebpf"], default-features = false, branch = "main" }
 cty = { version = "0.2.2", default-features = false }
 # 系统/跨平台依赖
 libc = { version = "0.2.153", features = [] }
@@ -48,13 +49,13 @@ ctor = "0.4.0"
 once_cell = "1.19.0"
 cargo_metadata = "0.23.1"
 
-# 工作区全局profile配置（panic仅能在此声明）
+# 工作区全局profile配置
 [profile.release]
 lto = true
 codegen-units = 1
 panic = "abort"
 debug = false
-opt-level = "s"
+opt-level = 3
 debug-assertions = false
 strip = "symbols"
 rustflags = [
@@ -62,11 +63,7 @@ rustflags = [
     "-C", "inline-threshold=1000"
 ]
 
-# 子包专属profile：删除panic配置，仅保留编译优化参数
 [profile.release.package.frame-analyzer-ebpf]
-lto = true
-opt-level = 3
-codegen-units = 1
 rustflags = [
     "-C", "target-feature=+alu32",
     "-C", "force-frame-pointers=off"
@@ -83,7 +80,11 @@ incremental = false
 codegen-units = 1
 rpath = false
 
-# 适配cargo-ebpf的元数据配置
 [workspace.metadata.ebpf]
 target = "bpfel-unknown-none"
 cpu = "generic"
+
+# 保留patch块，强制替换crates.io的aya为git源（稳定特性）
+[patch.crates-io]
+aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
+aya-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }

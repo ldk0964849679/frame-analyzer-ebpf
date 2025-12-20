@@ -1,10 +1,13 @@
 [package]
 name = "xtask"
-edition = "2021"
+edition = "2024"
 version = "0.1.0"
+# 补充编译脚本声明，与项目其他子包保持一致
+build = "build.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-cargo_metadata = "0.15.4"
+cargo_metadata = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-aya-ebpf = { workspace = true }
+# 直接指定git源，跳过工作区依赖传递，避免拉取旧版本
+aya-ebpf = { git = "https://github.com/aya-rs/aya", features = ["ebpf"], default-features = false, branch = "main" }

@@ -8,12 +8,15 @@ description.workspace = true
 documentation.workspace = true
 repository.workspace = true
 license.workspace = true
+build = "build.rs"
 
 [dependencies]
-aya = { workspace = true }
-frame-analyzer-ebpf-common = { workspace = true, features = ["user"] }
+# 直接指定git源，跳过工作区依赖传递
+aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
+# 使用本地相对路径依赖，避免工作区解析失效
+frame-analyzer-ebpf-common = { path = "../frame-analyzer-ebpf-common", features = ["user"] }
 anyhow = { workspace = true }
-libc = { workspace = true } # 删除android特性，该特性不存在
+libc = { workspace = true }
 thiserror = { workspace = true }
 ctor = { workspace = true }
 ctrlc = { workspace = true }
@@ -27,6 +30,11 @@ cc = { workspace = true }
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
+required-features = ["user"]
+
+[features]
+default = ["user"]
+user = ["frame-analyzer-ebpf-common/user"]
 
 [package.metadata]
 supported-targets = ["aarch64-linux-android", "aarch64-unknown-linux-gnu"]
