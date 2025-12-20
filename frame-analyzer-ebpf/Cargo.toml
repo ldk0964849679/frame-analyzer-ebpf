@@ -35,3 +35,5 @@ default = ["ebpf"]
 [package.metadata.ebpf]
 target = "bpfel-unknown-none"
 cpu = "generic"
+# 新增：指定eBPF程序类型，适配aya-ebpf 0.1.1的加载逻辑
+prog-type = "tracepoint"

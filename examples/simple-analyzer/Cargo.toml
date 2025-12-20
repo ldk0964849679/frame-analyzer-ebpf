@@ -18,4 +18,6 @@ libc = { workspace = true } # 删除android特性，该特性不存在
 
 [[bin]]
 name = "simple-analyzer"
-path = "src/main.rs" # 新增：显式指定二进制入口，避免编译歧义
+path = "src/main.rs"
+# 新增：指定二进制目标类型，避免跨平台编译歧义
+required-features = ["user"]
