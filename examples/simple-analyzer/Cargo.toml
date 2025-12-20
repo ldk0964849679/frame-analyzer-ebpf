@@ -14,11 +14,11 @@ build = "build.rs"
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 ctrlc = { workspace = true }
-# 使用本地相对路径依赖frame-analyzer，避免工作区解析失效
+# 保留本地路径依赖frame-analyzer
 frame-analyzer = { path = "../../frame-analyzer" }
 libc = { workspace = true }
-# 直接指定git源，跳过工作区依赖传递
-aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
+# 继承工作区的本地aya依赖
+aya = { workspace = true }
 
 [features]
 default = ["user"]

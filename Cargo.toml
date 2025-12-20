@@ -14,6 +14,7 @@ default-members = ["frame-analyzer-ebpf-common", "frame-analyzer-ebpf"]
 
 [workspace.package]
 edition = "2024"
+rust-version = "1.85.0" # 移至此处，解决rust-version继承报错
 version = "0.3.4"
 authors = ["shadow3aaa@github.com"]
 license = "GPL-3.0"
@@ -25,13 +26,55 @@ keywords = ["ebpf", "android", "frame-analysis"]
 categories = ["os::linux-programming", "embedded"]
 homepage = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
 
+# 新增：解决aya的lints.workspace = true继承报错（替换为合法的lint配置）
+[workspace.lints]
+# 配置Rust官方lint组规则
+[workspace.lints.rust]
+warnings = "deny"        # 拒绝所有Rust警告
+unused_variables = "warn"# 对未使用变量仅发出警告
+unused_imports = "warn"  # 对未使用导入仅发出警告
+dead_code = "warn"       # 对死代码仅发出警告
+
 [workspace.dependencies]
-# 项目内部依赖
-frame-analyzer = { path = "./frame-analyzer", version = "0.3.4" }
-frame-analyzer-ebpf-common = { path = "./frame-analyzer-ebpf-common", version = "0.3.4" }
-# 锁定到main分支，保留ebpf特性
-aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
-aya-ebpf = { git = "https://github.com/aya-rs/aya", features = ["ebpf"], default-features = false, branch = "main" }
+# ======== 修正aya相关依赖路径（匹配实际遍历结果） ========
+aya = { path = "./vendor/aya/aya" } # 修正为实际的aya路径
+aya-ebpf = { path = "./vendor/aya/ebpf/aya-ebpf", features = ["ebpf"], default-features = false } # 保留正确的aya-ebpf路径
+aya-obj = { path = "./vendor/aya/aya-obj" } # 补充aya依赖的aya-obj
+# ======== aya-v0.13.1 完整依赖清单 ========
+# 核心功能依赖
+object = "0.32.2"
+core-error = "0.0.0"
+hashbrown = "0.14.3"
+rbpf = "0.2.0"
+async-io = "1.13.0"
+bitflags = "2.4.1"
+bytes = "1.5.0"
+futures-util = "0.3.29"
+libbpf-rs = { version = "0.22.0", features = ["vmlinux"] }
+libbpf-sys = "1.2.0"
+log = "0.4.20"
+memoffset = "0.9.0"
+nix = { version = "0.28.0", features = ["signal", "socket", "process", "fs", "user"] }
+pin-project-lite = "0.2.13"
+proc-macro2 = "1.0.78"
+quote = "1.0.35"
+rustc-hash = "1.1.0"
+syn = { version = "2.0.58", features = ["full"] }
+tokio = { version = "1.35.0", features = ["full"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+vmlinux-generic = "0.1.6"
+# 测试/开发依赖
+assert_matches = "0.1.1"
+criterion = "0.5.1"
+hex-literal = "0.4.1"
+lazy_static = "1.4.0"
+libtest-mimic = "0.6.1"
+pretty_assertions = "1.4.0"
+rand = "0.8.5"
+tempfile = "3.8.1"
+test-log = "0.2.12"
+# ======== 其他依赖 ========
 cty = { version = "0.2.2", default-features = false }
 # 系统/跨平台依赖
 libc = { version = "0.2.153", features = [] }
@@ -84,7 +127,8 @@ rpath = false
 target = "bpfel-unknown-none"
 cpu = "generic"
 
-# 保留patch块，强制替换crates.io的aya为git源（稳定特性）
+# 替换patch块为本地路径，强制使用本地aya版本（同步修正路径+补充aya-obj）
 [patch.crates-io]
-aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
-aya-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
+aya = { path = "./vendor/aya/aya" } # 修正为实际的aya路径
+aya-ebpf = { path = "./vendor/aya/ebpf/aya-ebpf" } # 保留正确的aya-ebpf路径
+aya-obj = { path = "./vendor/aya/aya-obj" } # 补充aya依赖的aya-obj

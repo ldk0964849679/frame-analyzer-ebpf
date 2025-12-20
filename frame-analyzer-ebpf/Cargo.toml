@@ -18,10 +18,10 @@ publish = false
 build = "build.rs"
 
 [dependencies]
-# 直接指定git源，跳过工作区依赖传递
-aya-ebpf = { git = "https://github.com/aya-rs/aya", features = ["ebpf"], default-features = false, branch = "main" }
+# 继承工作区的本地aya-ebpf依赖
+aya-ebpf = { workspace = true }
 cty = { workspace = true }
-# 使用本地相对路径依赖，避免工作区解析失效
+# 保留本地路径依赖，特性继承不变
 frame-analyzer-ebpf-common = { path = "../frame-analyzer-ebpf-common", features = ["bpf"] }
 
 [lib]
@@ -31,7 +31,8 @@ name = "frame_analyzer_ebpf"
 required-features = ["ebpf"]
 
 [features]
-ebpf = ["aya-ebpf/ebpf", "frame-analyzer-ebpf-common/bpf"]
+# 工作区已声明ebpf特性，仅保留依赖关联即可
+ebpf = ["frame-analyzer-ebpf-common/bpf"]
 default = ["ebpf"]
 
 [package.metadata.ebpf]

@@ -11,9 +11,9 @@ license.workspace = true
 build = "build.rs"
 
 [dependencies]
-# 直接指定git源，跳过工作区依赖传递
-aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
-# 使用本地相对路径依赖，避免工作区解析失效
+# 继承工作区的本地aya依赖
+aya = { workspace = true }
+# 保留本地路径依赖和特性配置
 frame-analyzer-ebpf-common = { path = "../frame-analyzer-ebpf-common", features = ["user"] }
 anyhow = { workspace = true }
 libc = { workspace = true }

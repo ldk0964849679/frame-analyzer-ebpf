@@ -1,23 +1,11 @@
-#!/bin/bash
-set -e
+# 1. 进入项目根目录
+cd /workspaces/frame-analyzer-ebpf
 
-# 创建cargo配置文件启用build-std
-mkdir -p .cargo
-cat > .cargo/config.toml << EOF
-[unstable]
-build-std = ["core"]
-build-std-features = ["compiler-builtins-mem"]
-EOF
+# 2. 遍历查询vendor/aya下所有Cargo.toml文件（关键）
+find ./vendor/aya -name "Cargo.toml" -type f
 
-# 关键：删除disable-redzone，仅保留eBPF兼容参数
-export RUSTFLAGS="-C linker=bpf-linker -C link-arg=--target=bpfel-unknown-none -C link-arg=--cpu=generic --cfg aya_ebpf -C target-feature=+alu32 -C force-frame-pointers=off"
+# 3. 遍历查询vendor/aya下所有名为aya的目录
+find ./vendor/aya -name "aya" -type d
 
-# 切换Nightly工具链
-rustup override set nightly
-
-# 编译eBPF程序
-cargo build --target bpfel-unknown-none --release -p frame-analyzer-ebpf
-
-# 验证产物
-echo -e "\n编译完成，eBPF字节码路径："
-ls -l target/bpfel-unknown-none/release/frame_analyzer_ebpf.bpf.o
+# 4. 遍历查询vendor/aya下所有名为aya-ebpf的目录
+find ./vendor/aya -name "aya-ebpf" -type d

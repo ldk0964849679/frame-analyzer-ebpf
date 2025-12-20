@@ -1,0 +1,9 @@
+config:
+  no-duplicate-heading: false
+
+globs:
+  - "**/*.md"
+ignores:
+  - "**/CHANGELOG.md"
+  - "target/**/*"
+  - "xtask/libbpf/**/*"

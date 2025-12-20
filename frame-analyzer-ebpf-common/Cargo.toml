@@ -16,12 +16,12 @@ build = "build.rs"
 [features]
 default = []
 user = ["dep:aya"]
-bpf = ["dep:aya-ebpf", "aya-ebpf/ebpf"]
+bpf = ["dep:aya-ebpf"] # 工作区已声明ebpf特性，无需重复指定
 
 [dependencies]
-# 直接指定git源，不再依赖工作区传递，避免解析失效
-aya = { git = "https://github.com/aya-rs/aya", branch = "main", optional = true }
-aya-ebpf = { git = "https://github.com/aya-rs/aya", features = ["ebpf"], default-features = false, branch = "main", optional = true }
+# 继承工作区的本地aya依赖，保留可选性
+aya = { workspace = true, optional = true }
+aya-ebpf = { workspace = true, optional = true }
 libc = { workspace = true }
 
 [lib]
