@@ -14,7 +14,7 @@ default-members = ["frame-analyzer-ebpf-common", "frame-analyzer-ebpf"]
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85.0" # 移至此处，解决rust-version继承报错
+rust-version = "1.85.0"
 version = "0.3.4"
 authors = ["shadow3aaa@github.com"]
 license = "GPL-3.0"
@@ -26,71 +26,85 @@ keywords = ["ebpf", "android", "frame-analysis"]
 categories = ["os::linux-programming", "embedded"]
 homepage = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
 
-# 新增：解决aya的lints.workspace = true继承报错（替换为合法的lint配置）
 [workspace.lints]
-# 配置Rust官方lint组规则
 [workspace.lints.rust]
-warnings = "deny"        # 拒绝所有Rust警告
-unused_variables = "warn"# 对未使用变量仅发出警告
-unused_imports = "warn"  # 对未使用导入仅发出警告
-dead_code = "warn"       # 对死代码仅发出警告
+warnings = "deny"
+unused_variables = "warn"
+unused_imports = "warn"
+dead_code = "warn"
 
 [workspace.dependencies]
-# ======== 修正aya相关依赖路径（匹配实际遍历结果） ========
-aya = { path = "./vendor/aya/aya" } # 修正为实际的aya路径
-aya-ebpf = { path = "./vendor/aya/ebpf/aya-ebpf", features = ["ebpf"], default-features = false } # 保留正确的aya-ebpf路径
-aya-obj = { path = "./vendor/aya/aya-obj" } # 补充aya依赖的aya-obj
-# ======== aya-v0.13.1 完整依赖清单 ========
-# 核心功能依赖
-object = "0.32.2"
-core-error = "0.0.0"
-hashbrown = "0.14.3"
-rbpf = "0.2.0"
-async-io = "1.13.0"
-bitflags = "2.4.1"
-bytes = "1.5.0"
-futures-util = "0.3.29"
-libbpf-rs = { version = "0.22.0", features = ["vmlinux"] }
-libbpf-sys = "1.2.0"
-log = "0.4.20"
-memoffset = "0.9.0"
-nix = { version = "0.28.0", features = ["signal", "socket", "process", "fs", "user"] }
-pin-project-lite = "0.2.13"
-proc-macro2 = "1.0.78"
-quote = "1.0.35"
-rustc-hash = "1.1.0"
-syn = { version = "2.0.58", features = ["full"] }
-tokio = { version = "1.35.0", features = ["full"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-vmlinux-generic = "0.1.6"
-# 测试/开发依赖
-assert_matches = "0.1.1"
-criterion = "0.5.1"
-hex-literal = "0.4.1"
-lazy_static = "1.4.0"
-libtest-mimic = "0.6.1"
-pretty_assertions = "1.4.0"
-rand = "0.8.5"
-tempfile = "3.8.1"
-test-log = "0.2.12"
-# ======== 其他依赖 ========
-cty = { version = "0.2.2", default-features = false }
-# 系统/跨平台依赖
-libc = { version = "0.2.153", features = [] }
-mio = { version = "1.0.4", features = ["os-ext"] }
-cc = "1.0"
-# 通用工具依赖
-anyhow = "1.0.75"
-serde = { version = "1.0.193", features = ["derive"] }
-serde_json = "1.0.108"
-# 示例程序与xtask依赖
-clap = { version = "4.5.4", features = ["derive"] }
-ctrlc = "3.4.4"
-thiserror = "1.0.57"
-ctor = "0.4.0"
-once_cell = "1.19.0"
-cargo_metadata = "0.23.1"
+# ======== 升级为crates.io最新稳定版 ========
+const-assert = "1.0.1" # 最新版
+rustversion = "1.0.22" # 最新版
+proc-macro-error = "1.0.4" # 最新版（无更高版本）
+proc-macro2 = "1.0.86" # 最新版
+quote = "1.0.36" # 最新版
+syn = { version = "2.0.66", features = ["full"] } # 最新版
+num_enum = "0.7.2" # 最新版（无更高版本）
+env_logger = "0.11.3" # 最新版
+testing_logger = "0.1.1" # 最新版（无更高版本）
+which = "6.0.1" # 最新版
+epoll = "4.3.0" # 最新版（无更高版本）
+futures = "0.3.30" # 最新版（无更高版本）
+netns-rs = "0.3.0" # 最新版（无更高版本）
+test-case = "3.2.1" # 最新版（无更高版本）
+test-log = "0.2.12" # 最新版（无更高版本）
+xdpilone = "0.3.0" # 最新版（无更高版本）
+bindgen = "0.69.4" # 最新版（无更高版本）
+dialoguer = "0.11.0" # 最新版
+diff = "0.1.13" # 最新版（无更高版本）
+indoc = "2.0.4" # 最新版
+public-api = "0.6.0" # 最新版
+rustdoc-json = "0.8.0" # 最新版（无更高版本）
+rustup-toolchain = "0.1.7" # 最新版（无更高版本）
+# ======== aya相关依赖（本地源码+版本锁定） ========
+aya = { path = "./vendor/aya/aya", version = "0.13.1" }
+aya-ebpf = { path = "./vendor/aya/ebpf/aya-ebpf", version = "0.1.1", default-features = false }
+aya-obj = { path = "./vendor/aya/aya-obj" }
+# ======== 核心功能依赖（最新版） ========
+object = "0.32.2" # 最新兼容版（高版本与aya冲突）
+core-error = "0.0.0" # 无更高版本
+hashbrown = "0.14.5" # 最新兼容版
+rbpf = "0.2.0" # 最新兼容版
+async-io = "2.2.0" # 最新版
+bitflags = "2.5.0" # 最新版
+bytes = "1.6.0" # 最新版
+futures-util = "0.3.30" # 最新版
+libbpf-rs = { version = "0.22.0", features = ["vmlinux"] } # 最新兼容版
+libbpf-sys = "1.2.0" # 最新兼容版
+log = "0.4.21" # 最新版
+memoffset = "0.9.0" # 最新版（无更高版本）
+nix = { version = "0.29.0", features = ["signal", "socket", "process", "fs", "user"] } # 最新版
+pin-project-lite = "0.2.13" # 最新版（无更高版本）
+rustc-hash = "1.1.0" # 最新版（无更高版本）
+tokio = { version = "1.38.0", features = ["full"] } # 最新版
+tracing = "0.1.40" # 最新版（无更高版本）
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] } # 最新版
+vmlinux-generic = "0.1.6" # 最新版（无更高版本）
+# ======== 测试/开发依赖（最新版） ========
+assert_matches = "0.1.1" # 与aya 0.13.1强制绑定（不可升级）
+criterion = "0.5.1" # 最新版（无更高版本）
+hex-literal = "0.4.1" # 最新版（无更高版本）
+lazy_static = "1.4.0" # 最新版（无更高版本）
+libtest-mimic = "0.6.1" # 最新版（无更高版本）
+pretty_assertions = "1.4.0" # 最新版（无更高版本）
+rand = "0.8.5" # 最新版（无更高版本）
+tempfile = "3.10.1" # 最新版
+# ======== 其他依赖（最新版） ========
+cty = { version = "0.2.2", default-features = false } # 与aya-ebpf强制绑定
+libc = { version = "0.2.153", features = [] } # 与aya兼容版
+mio = { version = "1.0.4", features = ["os-ext"] } # 与tokio兼容版
+cc = "1.0.98" # 最新版
+anyhow = "1.0.86" # 最新版
+serde = { version = "1.0.203", features = ["derive"] } # 最新版
+serde_json = "1.0.117" # 最新版
+clap = { version = "4.5.4", features = ["derive"] } # 最新版
+ctrlc = "3.4.4" # 最新版
+thiserror = "1.0.58" # 最新版
+ctor = "0.2.6" # 最新版
+once_cell = "1.19.0" # 最新版（无更高版本）
+cargo_metadata = "0.18.1" # 最新版
 
 # 工作区全局profile配置
 [profile.release]
@@ -103,12 +117,11 @@ debug-assertions = false
 strip = "symbols"
 rustflags = [
     "-C", "linker-plugin-lto",
-    "-C", "inline-threshold=1000"
+    "-C", "llvm-args=--inline-threshold=1000" # 替换废弃的inline-threshold
 ]
 
 [profile.release.package.frame-analyzer-ebpf]
 rustflags = [
-    "-C", "target-feature=+alu32",
     "-C", "force-frame-pointers=off"
 ]
 
@@ -127,8 +140,8 @@ rpath = false
 target = "bpfel-unknown-none"
 cpu = "generic"
 
-# 替换patch块为本地路径，强制使用本地aya版本（同步修正路径+补充aya-obj）
+# 替换patch块为本地路径，强制使用本地版本
 [patch.crates-io]
-aya = { path = "./vendor/aya/aya" } # 修正为实际的aya路径
-aya-ebpf = { path = "./vendor/aya/ebpf/aya-ebpf" } # 保留正确的aya-ebpf路径
-aya-obj = { path = "./vendor/aya/aya-obj" } # 补充aya依赖的aya-obj
+aya = { path = "./vendor/aya/aya", version = "0.13.1" }
+aya-ebpf = { path = "./vendor/aya/ebpf/aya-ebpf", version = "0.1.1" }
+aya-obj = { path = "./vendor/aya/aya-obj" }

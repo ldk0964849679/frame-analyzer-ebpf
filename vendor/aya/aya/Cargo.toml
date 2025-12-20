@@ -5,7 +5,7 @@ description = "An eBPF library with a focus on developer experience and operabil
 keywords = ["bpf", "ebpf", "kernel", "linux"]
 readme = "README.md"
 documentation = "https://docs.rs/aya"
-rust-version = "1.85.0"
+rust-version = "1.85.0" # 与项目根目录的rust-version保持一致
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -13,7 +13,7 @@ homepage.workspace = true
 edition.workspace = true
 
 [dependencies]
-assert_matches = { workspace = true }
+assert_matches = "1.5.0" # 直接指定crates.io可用的新版，删除workspace继承
 async-io = { workspace = true, optional = true }
 aya-obj = { path = "../aya-obj", version = "^0.2.1", features = ["std"] }
 bitflags = { workspace = true }

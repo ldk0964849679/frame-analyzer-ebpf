@@ -20,7 +20,7 @@ object = { workspace = true, features = ["elf", "read_core"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-assert_matches = { workspace = true }
+assert_matches = "1.5.0" # 删除workspace继承，直接指定新版
 rbpf = { workspace = true }
 
 [features]

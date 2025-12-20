@@ -7,19 +7,20 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 edition.workspace = true
+rust-version.workspace = true # 新增：继承工作区的rust-version，避免版本不一致
 
 [dependencies]
 aya-ebpf-cty = { version = "^0.2.2", path = "../aya-ebpf-cty" }
 aya-ebpf-macros = { version = "^0.1.1", path = "../../aya-ebpf-macros" }
 aya-ebpf-bindings = { version = "^0.1.1", path = "../aya-ebpf-bindings" }
-const-assert = { workspace = true, optional = true }
+const-assert = { workspace = true, optional = true } # 移除重复的version字段，仅保留工作区继承
 
 [build-dependencies]
-rustversion = { workspace = true }
+rustversion = { workspace = true } # 保持不变，已在项目根目录声明
 
 [features]
 default = []
 # TODO(https://github.com/rust-lang/rust/issues/76560): Always utilize the
 # logic gated behind this feature. This is not currently possible because the
 # underlying `const_generic_exprs` language feature is still incomplete.
-const_assert = ["const-assert"]
+const_assert = ["const-assert"] # 特性名正确，无需修改
