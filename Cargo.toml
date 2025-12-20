@@ -1,25 +1,28 @@
 [workspace]
-# 明确工作区成员，确保cargo能识别eBPF、安卓库和示例
+# 明确工作区成员，确保cargo能识别各子crate
 members = [
-    "frame-analyzer",          # 安卓端核心库（含C API）
-    "frame-analyzer-ebpf",     # eBPF程序
-    "frame-analyzer-ebpf-common",  # 共享数据结构（eBPF与用户态通信）
-    "examples/simple-analyzer" # 示例程序（验证功能）
+    "frame-analyzer",
+    "frame-analyzer-ebpf",
+    "frame-analyzer-ebpf-common",
+    "examples/simple-analyzer"
 ]
 resolver = "2"  # 启用新版依赖解析器，避免版本冲突
 
 [workspace.package]
-# 统一所有子 crate 的基础配置
-edition = "2024"  # 与代码中Rust 2024语法匹配
+# 统一子crate的基础配置（仅保留必要字段，避免继承冲突）
+edition = "2024"
 version = "0.3.4"
 authors = ["shadow3aaa@github.com"]
 license = "GPL-3.0"
 repository = "https://github.com/shadow3aaa/frame-analyzer-ebpf"
+# 核心：补充子crate继承所需的description字段
+description = "eBPF-based frame analyzer for Android"
 
-# 统一依赖版本，避免子 crate 版本不一致
+# 统一依赖版本，仅保留公共依赖（移除路径依赖，避免循环引用）
 [workspace.dependencies]
-aya = "0.133.1"                # eBPF框架核心依赖
+aya = "0.13.1"                # eBPF框架核心依赖
 aya-ebpf = "0.1.1"            # eBPF程序依赖
-frame-analyzer-ebpf-common = { path = "./frame-analyzer-ebpf-common", version = "0.3.4" }
-libc = "0.2.153"              # 适配安卓C库调用
-mio = { version = "1.0.3", features = ["os-ext"] }  # 安卓端IO事件监听
+aya-ebpf-builder = "0.1.0"    # eBPF编译工具依赖
+libc = "0.2.153"              # 安卓C库调用依赖
+mio = { version = "1.0.3", features = ["os-ext"] }  # 安卓IO事件监听
+cc = "1.0"                    # 安卓NDK编译依赖

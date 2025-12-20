@@ -33,3 +33,6 @@ codegen-units = 1
 
 [workspace]
 members = []
+
+[build-dependencies]
+aya-ebpf-builder = "0.1.0"

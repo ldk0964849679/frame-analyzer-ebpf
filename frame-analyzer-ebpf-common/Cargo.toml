@@ -1,5 +1,6 @@
 [package]
 name = "frame-analyzer-ebpf-common"
+# 继承工作区的核心配置，与根目录Cargo.toml保持一致
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -8,11 +9,23 @@ repository.workspace = true
 license.workspace = true
 
 [features]
+# 拆分eBPF内核态和用户态特性，适配不同编译场景
 default = []
-user = ["aya"]
+# 用户态依赖aya完整库，eBPF态仅依赖aya-ebpf
+user = ["dep:aya"]
+bpf = ["dep:aya-ebpf"]
 
 [dependencies]
-aya = { version = "0.13.1", optional = true }
+# 从工作区继承版本，避免版本不一致
+aya = { workspace = true, optional = true }
+aya-ebpf = { workspace = true, optional = true }
+libc = { workspace = true } # 安卓/eBPF通用的C库依赖
 
 [lib]
 path = "src/lib.rs"
+# 补充crate类型，同时支持eBPF内核态和安卓用户态链接
+crate-type = [
+    "lib",          # Rust常规库，供用户态调用
+    "staticlib",    # 静态库，供eBPF程序链接
+    "cdylib"        # 动态库，供安卓C API调用
+]
