@@ -1,0 +1,68 @@
+[33m2a9a61e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m ok
+[33m7b34278[m ok
+[33mb4aeb7a[m 添加
+[33m7f47cf5[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m ok
+[33m2b9dc91[m 就
+[33m700b7af[m 可以
+[33mffdb2c2[m ok
+[33me51b240[m ok
+[33m11a60fb[m[33m ([m[1;31mupstream/main[m[33m, [m[1;31mupstream/HEAD[m[33m)[m fix: 强化cargo安装失败时的错误处理
+[33md10f1fa[m fix
+[33m82db5dc[m chore: v0.3.4
+[33m9b0c2a3[m fix: 适配a16新queueBuffer符号
+[33mfa60353[m fix: 更新后编译失败
+[33m7d84631[m build: 更新rust edition到2024，升级依赖项
+[33m479464f[m chore: v0.3.3
+[33me400679[m refactor: detach app时清除对应事件
+[33m4fb2cf5[m chore: v0.3.2
+[33mbe3dc70[m fix: buffer选取错误
+[33mad1d686[m chore: v0.3.1
+[33med4bda6[m fix: 未满144帧时无信息
+[33ma8d758c[m chore: v0.3.0
+[33m7b5cc1f[m feat: 添加新api: detach_apps
+[33mf6b32f2[m chore: v0.2.7
+[33m6a19ba8[m fix: 部分场景fps测量过大
+[33meadf83f[m v0.2.6
+[33m559a4dd[m fix
+[33mee1fb44[m fix
+[33m1ef8700[m fix
+[33m06e80ab[m fix
+[33mf062bd9[m fix
+[33m1d23cd0[m v0.2.3
+[33m42cc13a[m fix
+[33m487233e[m v0.2.2
+[33mab9e5a2[m fix
+[33m460601b[m v0.2.1
+[33m8df5b6c[m 避免重复添加app
+[33m972ca6c[m v0.2.0
+[33m419b108[m new apis
+[33mf08d4b9[m modified:   frame-analyzer/src/lib.rs
+[33mc6b825c[m modified:   Cargo.toml
+[33m54219f8[m modified:   README.md
+[33m13154e6[m v0.1.3
+[33m2c59a2e[m 文档
+[33m4dbf7e0[m modified:   README.md
+[33mf246496[m README
+[33m790fa73[m 文档
+[33mc8c6b83[m modified:   frame-analyzer/build.rs
+[33m77cd344[m 自动下载bpf-linker
+[33m85f619e[m v0.1.2
+[33m2e2da0a[m 文档
+[33mb297c58[m 修复crates.io release构建
+[33m17474c3[m 文档
+[33m1889de5[m publish
+[33me566cbc[m 自构建文档
+[33m053b155[m Update build-doc.yml
+[33md9ce9e7[m Update build-doc.yml
+[33me94a2ce[m Update build-doc.yml
+[33m435f309[m Create build-doc.yml
+[33mf04fbec[m modified:   frame-analyzer/Cargo.toml
+[33m13b14bb[m 避免OUT_DIR以外的修改
+[33m37590a3[m 格式化
+[33m4706b71[m 允许不在workspace编译
+[33me8434db[m modified:   frame-analyzer-ebpf/Cargo.toml
+[33m5c4d7f7[m 修正Cargo.toml
+[33me1eb2a3[m 删除无用的xtask配置
+[33m159b667[m 删除无用的xtask配置
+[33mc7c4fbe[m 修正vim配置
+[33m26aa8fb[m 修正vscode配置
