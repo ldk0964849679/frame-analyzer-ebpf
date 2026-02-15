@@ -1,31 +1,36 @@
 /*
-* Copyright (c) 2024 shadow3aaa@gitbub.com
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <https://www.gnu.org/licenses/>.
-*/
+ * Copyright (c) 2024 shadow3aaa@gitbub.com
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use std::{
+    collections::{HashSet, VecDeque},
+    panic::{catch_unwind, AssertUnwindSafe},
     sync::{
-        Arc, Mutex, Condvar, LazyLock,
         atomic::{AtomicBool, Ordering},
+        Arc, Condvar, LazyLock, Mutex,
     },
+    thread,
     time::Duration,
     os::unix::io::RawFd,
-    thread,
-    collections::VecDeque,
-    panic::{catch_unwind, AssertUnwindSafe},
 };
-use libc::{c_int, c_uint, c_void, eventfd, EFD_NONBLOCK, EFD_CLOEXEC, write, close, read};
+
+use libc::{
+    c_int, c_uint, c_void, close, eventfd, read, write, EFD_CLOEXEC, EFD_NONBLOCK,
+};
+
 use crate::{Analyzer, Pid};
 
 /// 帧数据缓冲区：分离监听与读取逻辑，避免锁竞争
@@ -57,9 +62,10 @@ impl FrameBuffer {
         if !self.running.load(Ordering::Acquire) {
             return None;
         }
-        // 修复：移除多余的 mut
+
         let data = self.data.lock().unwrap();
         let (mut data, _) = self.cond.wait_timeout(data, timeout).unwrap();
+
         data.iter().position(|(p, _)| *p == pid).map(|pos| {
             let (_, ft) = data.remove(pos).unwrap();
             ft
@@ -79,7 +85,8 @@ static FRAME_BUFFER: LazyLock<Arc<FrameBuffer>> = LazyLock::new(|| Arc::new(Fram
 static NOTIFY_FD: Mutex<Option<RawFd>> = Mutex::new(None);
 static NOTIFY_THREAD: Mutex<Option<thread::JoinHandle<()>>> = Mutex::new(None);
 
-// 新增：暂停控制相关全局变量
+static PID_ATTACHED: LazyLock<Mutex<HashSet<Pid>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
+
 static PAUSED: AtomicBool = AtomicBool::new(false);
 static PAUSE_COND: Condvar = Condvar::new();
 static PAUSE_MTX: Mutex<()> = Mutex::new(());
@@ -109,40 +116,33 @@ pub extern "C" fn frame_analyzer_init() -> c_int {
         return 0;
     }
 
-    // 初始化Analyzer
     let analyzer = match catch_unwind(|| Analyzer::new()) {
         Ok(Ok(a)) => a,
         _ => return -1,
     };
 
-    // 创建eventfd
     let efd = unsafe { eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC) };
     if efd < 0 {
         return -1;
     }
 
-    // 共享资源
     let analyzer_arc = Arc::new(Mutex::new(analyzer));
     let analyzer_clone = analyzer_arc.clone();
     let efd_clone = efd;
     let buffer_clone = FRAME_BUFFER.clone();
 
-    // 启动后台监听线程（改造后支持暂停）
     let thread = thread::spawn(move || {
         while RUNNING.load(Ordering::Acquire) {
-            // 新增：检查暂停标记，若暂停则阻塞等待（修复let_underscore_lock错误）
             let pause_guard = PAUSE_MTX.lock().unwrap();
             let paused_guard = PAUSE_COND.wait_while(pause_guard, |_guard| {
                 PAUSED.load(Ordering::Acquire) && RUNNING.load(Ordering::Acquire)
             }).unwrap();
-            drop(paused_guard); // 显式释放guard（可选）
+            drop(paused_guard);
 
-            // 若此时已停止，直接退出循环
             if !RUNNING.load(Ordering::Acquire) {
                 break;
             }
 
-            // 原有逻辑：获取Analyzer锁并读取帧数据
             let mut analyzer = match analyzer_clone.try_lock() {
                 Ok(a) => a,
                 Err(_) => {
@@ -152,13 +152,13 @@ pub extern "C" fn frame_analyzer_init() -> c_int {
             };
 
             let result = catch_unwind(AssertUnwindSafe(|| analyzer.recv_timeout(Duration::from_millis(1))));
-            drop(analyzer); // 立即释放锁
+            drop(analyzer);
 
             match result {
                 Ok(Some((pid, ft))) => {
                     buffer_clone.push(pid, ft);
                     let val: u64 = 1;
-                    unsafe { write(efd_clone, &val as *const u64 as *const c_void, 8) };
+                    unsafe { write(efd_clone, &val as *const u64 as *mut c_void, 8) };
                 }
                 Ok(None) => thread::sleep(Duration::from_millis(1)),
                 Err(_) => break,
@@ -168,20 +168,28 @@ pub extern "C" fn frame_analyzer_init() -> c_int {
         unsafe { close(efd_clone) };
     });
 
-    // 初始化全局资源
     *global = Some(analyzer_arc);
     *NOTIFY_FD.lock().unwrap() = Some(efd);
     *NOTIFY_THREAD.lock().unwrap() = Some(thread);
+
     RUNNING.store(true, Ordering::Release);
 
     0
 }
 
-/// 绑定目标PID
+/// 绑定目标PID（防重复attach —— 最终正确版）
 #[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_attach(pid: c_int) -> c_int {
     if !RUNNING.load(Ordering::Acquire) {
         return -1;
+    }
+
+    let pid = pid as Pid;
+
+    // 先上锁查是否已经绑定
+    let mut attached = PID_ATTACHED.lock().unwrap();
+    if attached.contains(&pid) {
+        return 0;
     }
 
     let global = GLOBAL_ANALYZER.lock().unwrap();
@@ -190,7 +198,6 @@ pub extern "C" fn frame_analyzer_attach(pid: c_int) -> c_int {
         None => return -1,
     };
 
-    // 带超时重试的锁获取
     let mut analyzer_lock = None;
     for _ in 0..50 {
         match analyzer.try_lock() {
@@ -207,9 +214,11 @@ pub extern "C" fn frame_analyzer_attach(pid: c_int) -> c_int {
         None => return -1,
     };
 
-    let pid = pid as Pid;
     match catch_unwind(AssertUnwindSafe(|| analyzer.attach_app(pid))) {
-        Ok(Ok(())) => 0,
+        Ok(Ok(())) => {
+            attached.insert(pid);
+            0
+        }
         _ => -1,
     }
 }
@@ -226,14 +235,12 @@ pub extern "C" fn frame_analyzer_get_frametime(
     }
 
     let pid = pid as Pid;
-    // 超时逻辑：0表示非阻塞，>5000则设为100ms，否则使用传入值
     let timeout = Duration::from_millis(match timeout_ms {
         t if t <= 0 => 0,
         t if t > 5000 => 100,
         t => t as u64,
     });
 
-    // 清空eventfd
     if let Some(fd) = *NOTIFY_FD.lock().unwrap() {
         read_eventfd(fd);
     }
@@ -258,6 +265,8 @@ pub extern "C" fn frame_analyzer_detach(pid: c_int) -> c_int {
         return -1;
     }
 
+    let pid = pid as Pid;
+
     let global = GLOBAL_ANALYZER.lock().unwrap();
     let analyzer = match global.as_ref() {
         Some(a) => a,
@@ -280,9 +289,12 @@ pub extern "C" fn frame_analyzer_detach(pid: c_int) -> c_int {
         None => return -1,
     };
 
-    let pid = pid as Pid;
     match catch_unwind(AssertUnwindSafe(|| analyzer.detach_app(pid))) {
-        Ok(Ok(())) => 0,
+        Ok(Ok(())) => {
+            let mut attached = PID_ATTACHED.lock().unwrap();
+            attached.remove(&pid);
+            0
+        }
         _ => -1,
     }
 }
@@ -294,19 +306,20 @@ pub extern "C" fn frame_analyzer_destroy() -> c_int {
         return 0;
     }
 
-    // 停止时先恢复线程，确保能正常退出
     PAUSED.store(false, Ordering::Release);
     PAUSE_COND.notify_all();
 
     RUNNING.store(false, Ordering::Release);
     FRAME_BUFFER.stop();
 
-    // 等待监听线程退出
     if let Some(thread) = NOTIFY_THREAD.lock().unwrap().take() {
-        thread.join().ok();
+        let _ = thread.join();
     }
 
-    // 清理Analyzer资源
+    let mut attached = PID_ATTACHED.lock().unwrap();
+    attached.clear();
+    drop(attached);
+
     let mut global = GLOBAL_ANALYZER.lock().unwrap();
     if let Some(analyzer) = global.as_ref() {
         if let Ok(mut analyzer) = analyzer.try_lock() {
@@ -315,7 +328,6 @@ pub extern "C" fn frame_analyzer_destroy() -> c_int {
     }
     *global = None;
 
-    // 关闭eventfd
     let mut notify_fd = NOTIFY_FD.lock().unwrap();
     if let Some(fd) = *notify_fd {
         unsafe { close(fd); }
@@ -336,35 +348,35 @@ pub extern "C" fn frame_analyzer_get_notify_fd() -> c_int {
     guard.as_ref().copied().unwrap_or(-1) as c_int
 }
 
-// 新增：暂停监听线程（C接口）
+/// 暂停监听线程
 #[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_pause() -> c_int {
     if !RUNNING.load(Ordering::Acquire) {
-        return -1; // 未初始化，返回错误
+        return -1;
     }
 
     PAUSED.store(true, Ordering::Release);
-    0 // 成功暂停返回0
+    0 // 去掉分号，返回 i32
 }
 
-// 新增：恢复监听线程（C接口）
+/// 恢复监听线程
 #[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_resume() -> c_int {
     if !RUNNING.load(Ordering::Acquire) {
-        return -1; // 未初始化，返回错误
+        return -1;
     }
 
     PAUSED.store(false, Ordering::Release);
-    PAUSE_COND.notify_all(); // 唤醒阻塞的线程
-    0 // 成功恢复返回0
+    PAUSE_COND.notify_all();
+    0
 }
 
-// 新增：查询暂停状态（C接口）
+/// 查询暂停状态
 #[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_is_paused() -> c_int {
     if PAUSED.load(Ordering::Acquire) {
-        1 // 暂停中返回1
+        1
     } else {
-        0 // 运行中返回0
+        0
     }
 }
