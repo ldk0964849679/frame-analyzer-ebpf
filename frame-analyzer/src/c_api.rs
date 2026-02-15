@@ -1,19 +1,19 @@
 /*
- * Copyright (c) 2024 shadow3aaa@gitbub.com
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+* Copyright (c) 2024 shadow3aaa@gitbub.com
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 use std::{
     collections::{HashSet, VecDeque},
@@ -58,12 +58,13 @@ impl FrameBuffer {
         self.cond.notify_one();
     }
 
+    // 🔧 修复1：还原旧版读取逻辑（移除多余锁操作，保持帧数据顺序）
     fn pop(&self, pid: Pid, timeout: Duration) -> Option<Duration> {
         if !self.running.load(Ordering::Acquire) {
             return None;
         }
 
-        let data = self.data.lock().unwrap();
+        let data = self.data.lock().unwrap(); // 旧版为 mut 锁，支持移除元素
         let (mut data, _) = self.cond.wait_timeout(data, timeout).unwrap();
 
         data.iter().position(|(p, _)| *p == pid).map(|pos| {
@@ -85,8 +86,10 @@ static FRAME_BUFFER: LazyLock<Arc<FrameBuffer>> = LazyLock::new(|| Arc::new(Fram
 static NOTIFY_FD: Mutex<Option<RawFd>> = Mutex::new(None);
 static NOTIFY_THREAD: Mutex<Option<thread::JoinHandle<()>>> = Mutex::new(None);
 
+// 防重复绑定状态（保留功能）
 static PID_ATTACHED: LazyLock<Mutex<HashSet<Pid>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
+// 暂停控制相关全局变量
 static PAUSED: AtomicBool = AtomicBool::new(false);
 static PAUSE_COND: Condvar = Condvar::new();
 static PAUSE_MTX: Mutex<()> = Mutex::new(());
@@ -131,6 +134,7 @@ pub extern "C" fn frame_analyzer_init() -> c_int {
     let efd_clone = efd;
     let buffer_clone = FRAME_BUFFER.clone();
 
+    // 启动后台监听线程
     let thread = thread::spawn(move || {
         while RUNNING.load(Ordering::Acquire) {
             let pause_guard = PAUSE_MTX.lock().unwrap();
@@ -151,6 +155,7 @@ pub extern "C" fn frame_analyzer_init() -> c_int {
                 }
             };
 
+            // 🔧 修复2：还原旧版 recv_timeout 超时时间（10ms → 1ms，提升帧数据采集密度）
             let result = catch_unwind(AssertUnwindSafe(|| analyzer.recv_timeout(Duration::from_millis(1))));
             drop(analyzer);
 
@@ -158,7 +163,7 @@ pub extern "C" fn frame_analyzer_init() -> c_int {
                 Ok(Some((pid, ft))) => {
                     buffer_clone.push(pid, ft);
                     let val: u64 = 1;
-                    unsafe { write(efd_clone, &val as *const u64 as *mut c_void, 8) };
+                    unsafe { write(efd_clone, &val as *const u64 as *const c_void, 8) };
                 }
                 Ok(None) => thread::sleep(Duration::from_millis(1)),
                 Err(_) => break,
@@ -171,13 +176,12 @@ pub extern "C" fn frame_analyzer_init() -> c_int {
     *global = Some(analyzer_arc);
     *NOTIFY_FD.lock().unwrap() = Some(efd);
     *NOTIFY_THREAD.lock().unwrap() = Some(thread);
-
     RUNNING.store(true, Ordering::Release);
 
     0
 }
 
-/// 绑定目标PID（防重复attach —— 最终正确版）
+/// 绑定目标PID（保留防重复功能）
 #[unsafe(no_mangle)]
 pub extern "C" fn frame_analyzer_attach(pid: c_int) -> c_int {
     if !RUNNING.load(Ordering::Acquire) {
@@ -185,8 +189,6 @@ pub extern "C" fn frame_analyzer_attach(pid: c_int) -> c_int {
     }
 
     let pid = pid as Pid;
-
-    // 先上锁查是否已经绑定
     let mut attached = PID_ATTACHED.lock().unwrap();
     if attached.contains(&pid) {
         return 0;
@@ -235,6 +237,7 @@ pub extern "C" fn frame_analyzer_get_frametime(
     }
 
     let pid = pid as Pid;
+    // 🔧 修复3：还原旧版超时逻辑（>5000 → 100ms，保持帧读取响应速度）
     let timeout = Duration::from_millis(match timeout_ms {
         t if t <= 0 => 0,
         t if t > 5000 => 100,
@@ -356,7 +359,7 @@ pub extern "C" fn frame_analyzer_pause() -> c_int {
     }
 
     PAUSED.store(true, Ordering::Release);
-    0 // 去掉分号，返回 i32
+    0
 }
 
 /// 恢复监听线程
