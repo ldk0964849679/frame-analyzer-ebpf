@@ -65,7 +65,7 @@ fn pop(&self, pid: Pid, timeout: Duration) -> Option<Duration> {
     }
 
     // 关键修正：data 必须是可变锁，才能调用 remove
-    let mut data = self.data.lock().unwrap();
+    let  data = self.data.lock().unwrap();
     let (mut data, _) = self.cond.wait_timeout(data, timeout).unwrap();
 
     data.iter().position(|(p, _)| *p == pid).map(|pos| {
