@@ -1,25 +1,8 @@
-/*
-* Copyright (c) 2024 shadow3aaa@gitbub.com
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <https://www.gnu.org/licenses/>.
-*/
-
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::HashSet,
     panic::{catch_unwind, AssertUnwindSafe},
     sync::{
-        atomic::{AtomicBool, AtomicI32, Ordering},
+        atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering},
         Arc, LazyLock, Mutex, MutexGuard, OnceLock, RwLock,
     },
     thread,
@@ -31,18 +14,20 @@ use libc::{
     c_int, c_uint, c_void, close, eventfd, read, write, EFD_CLOEXEC, EFD_NONBLOCK,
 };
 
+use crossbeam_queue::SegQueue;
 use crate::{Analyzer, Pid};
 
-// ==================== 帧缓冲区 ====================
+// ==================== 简化的无锁帧缓冲区 ====================
 struct FrameBuffer {
-    data: Mutex<VecDeque<(Pid, Duration)>>,
+    // 使用无锁队列，但保持简单的FIFO语义
+    queue: SegQueue<(Pid, Duration)>,
     running: AtomicBool,
 }
 
 impl FrameBuffer {
     fn new() -> Self {
         Self {
-            data: Mutex::new(VecDeque::with_capacity(512)),
+            queue: SegQueue::new(),
             running: AtomicBool::new(true),
         }
     }
@@ -51,25 +36,32 @@ impl FrameBuffer {
         if !self.running.load(Ordering::Relaxed) {
             return;
         }
-        if let Ok(mut data) = self.data.lock() {
-            data.push_back((pid, frametime));
-        }
+        self.queue.push((pid, frametime));
     }
 
     fn drain_for_pid(&self, pid: Pid) -> Vec<Duration> {
         if !self.running.load(Ordering::Relaxed) {
             return Vec::new();
         }
-        let mut data = self.data.lock().unwrap();
+
+        // 收集所有匹配的帧
         let mut result = Vec::new();
-        data.retain(|(p, ft)| {
-            if *p == pid {
-                result.push(*ft);
-                false
+        let mut temp = Vec::new();
+        
+        // 先全部取出来
+        while let Some((p, ft)) = self.queue.pop() {
+            if p == pid {
+                result.push(ft);
             } else {
-                true
+                temp.push((p, ft));
             }
-        });
+        }
+        
+        // 把不匹配的放回去（保持顺序）
+        for item in temp.into_iter().rev() {
+            self.queue.push(item);
+        }
+        
         result
     }
 
@@ -165,6 +157,7 @@ pub extern "C" fn frame_analyzer_init() -> c_int {
             match result {
                 Ok(Some((pid, ft))) => {
                     buffer_clone.push(pid, ft);
+                    // 恢复原版行为：每帧都通知
                     let val: u64 = 1;
                     unsafe { write(efd_clone, &val as *const u64 as *const c_void, 8) };
                 }
@@ -190,7 +183,6 @@ pub extern "C" fn frame_analyzer_attach(pid: c_int) -> c_int {
     }
 
     let pid = pid as Pid;
-    
     if PID_ATTACHED.read().unwrap().contains(&pid) {
         return 0;
     }
@@ -237,7 +229,6 @@ pub extern "C" fn frame_analyzer_get_frametime(
     }
 
     let frames = FRAME_BUFFER.drain_for_pid(pid);
-    
     if let Some(&ft) = frames.first() {
         let ft_struct = FrameTime {
             secs: ft.as_secs() as c_uint,
@@ -284,6 +275,8 @@ pub extern "C" fn frame_analyzer_detach(pid: c_int) -> c_int {
     match catch_unwind(AssertUnwindSafe(|| analyzer.detach_app(pid))) {
         Ok(Ok(())) => {
             PID_ATTACHED.write().unwrap().remove(&pid);
+            // 清理残留帧数据
+            let _ = FRAME_BUFFER.drain_for_pid(pid);
             0
         }
         _ => -1,

@@ -19,6 +19,7 @@ crate-type = [
 
 [dependencies]
 aya = "0.13.1"
+crossbeam-queue = "0.3"
 frame-analyzer-ebpf-common = { path = "../frame-analyzer-ebpf-common", features = ["user"], version = "0" }
 anyhow = "1"
 libc = "0.2"
